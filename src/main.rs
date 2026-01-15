@@ -1,3 +1,9 @@
+use aes_gcm::{
+    Aes256Gcm, Nonce,
+    aead::{Aead, AeadCore, KeyInit, OsRng},
+};
+use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHasher};
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -23,9 +29,8 @@ struct PasswordVault {
 struct PasswordEntry {
     service: String,
     username: String,
-    // encrypted_password: Vec<u8>,
-    encrypted_password: String,
-    // nonce: Vec<u8>,
+    encrypted_password: Vec<u8>,
+    nonce: Vec<u8>,
 }
 
 #[derive(Default)]
@@ -42,7 +47,7 @@ struct PixelVaultApp {
     // Data
     vault: Option<PasswordVault>,
     cipher_key: Option<Vec<u8>>,
-    
+
     // Display
     show_password_index: Option<usize>,
     decrypted_passwords: Vec<Option<String>>,
@@ -59,75 +64,78 @@ impl PixelVaultApp {
             .fill(ui.visuals().panel_fill)
         // .shadow(ui.visuals().popup_shadow)
     }
-    
+
     fn show_locked(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("header").show(ctx, |ui| {
             self.fancy_frame(ui).show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                
+
                 // Login screen
                 ui.label("Enter master password:");
                 let _response = ui.add(
                     egui::TextEdit::singleline(&mut self.master_password)
                         .password(true)
-                        .hint_text("Master password")
+                        .hint_text("Master password"),
                 );
-                
+
                 if ui.button("Unlock").clicked() {
                     self.unlock();
                 }
             });
         });
     }
-    
+
     fn show_unlocked(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.fancy_frame(ui).show(ui, |ui| {
                 // Main interface
-               ui.horizontal(|ui| {
-                   ui.heading("Add New Password");
-               });
-               
-               ui.horizontal(|ui| {
-                   ui.label("Service:");
-                   ui.text_edit_singleline(&mut self.new_service);
-               });
-               
-               ui.horizontal(|ui| {
-                   ui.label("Username:");
-                   ui.text_edit_singleline(&mut self.new_username);
-               });
-               
-               ui.horizontal(|ui| {
-                   ui.label("Password:");
-                   ui.add(egui::TextEdit::singleline(&mut self.new_password)
-                       .password(true)
-                   );
-               });
-               
-               if ui.button("Add Entry").clicked() && !self.new_service.is_empty() {
-                   // Add entry here
-                   self.add_entry();
-               }
-               
+                ui.horizontal(|ui| {
+                    ui.heading("Add New Password");
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Service:");
+                    ui.text_edit_singleline(&mut self.new_service);
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Username:");
+                    ui.text_edit_singleline(&mut self.new_username);
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Password:");
+                    ui.add(egui::TextEdit::singleline(&mut self.new_password).password(true));
+                });
+
+                if ui.button("Add Entry").clicked() && !self.new_service.is_empty() {
+                    // Add entry here
+                    self.add_entry();
+                }
+
                 ui.separator();
                 ui.heading("Stored Passwords");
-                
+
                 // Clone entries to avoid borrow checker issues
                 if let Some(vault) = &mut self.vault {
                     let entries = vault.entries.clone();
-                
+
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         for (i, entry) in entries.iter().enumerate() {
                             ui.group(|ui| {
                                 ui.label(format!("🌐 {}", entry.service));
                                 ui.label(format!("👤 {}", entry.username));
-                    
+
                                 ui.horizontal(|ui| {
                                     if ui.button("Show Password").clicked() {
-                                        self.decrypted_passwords[i] = Some(entry.encrypted_password.clone());
+                                        if let Ok(password) = self.decrypt_password(
+                                            &entry.encrypted_password,
+                                            &entry.nonce,
+                                        ) {
+                                            self.decrypted_passwords[i] = Some(password);
+                                        }
                                     }
-                    
+
                                     if let Some(password) = &self.decrypted_passwords[i] {
                                         ui.label(format!("🔑 {}", password));
                                         if ui.button("Hide").clicked() {
@@ -143,20 +151,61 @@ impl PixelVaultApp {
             });
         });
     }
-    
+
     fn unlock(&mut self) {
-        if let Some(_vault) = &self.vault {
+        if let Some(vault) = &self.vault {
+            let key = self.derive_key(&self.master_password, &vault.salt);
+            self.cipher_key = Some(key);
+            self.decrypted_passwords = vec![None; vault.entries.len()];
             self.is_unlocked = true;
+            self.error_message.clear();
         } else {
             // Create new vault
+            let salt = SaltString::generate(&mut OsRng);
+            let key = self.derive_key(&self.master_password, salt.as_str());
             self.vault = Some(PasswordVault {
-                salt: "todo".into(),
-                entries: vec![],
+                salt: salt.as_str().to_string(),
+                entries: Vec::new(),
             });
+            self.cipher_key = Some(key);
             self.is_unlocked = true;
+            self.error_message.clear();
         }
     }
-    
+
+    fn derive_key(&self, password: &str, salt: &str) -> Vec<u8> {
+        let salt = SaltString::from_b64(salt).unwrap();
+        let argon2 = Argon2::default();
+        let hash = argon2.hash_password(password.as_bytes(), &salt).unwrap();
+        hash.hash.unwrap().as_bytes()[..32].to_vec()
+    }
+
+    fn encrypt_password(&self, password: &str) -> Result<(Vec<u8>, Vec<u8>), String> {
+        let key = self.cipher_key.as_ref().ok_or("Not unlocked")?;
+        let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| e.to_string())?;
+
+        // Use OsRng for cryptographic randomness
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+
+        let ciphertext = cipher
+            .encrypt(&nonce, password.as_bytes())
+            .map_err(|e| e.to_string())?;
+
+        Ok((ciphertext, nonce.to_vec()))
+    }
+
+    fn decrypt_password(&self, encrypted: &[u8], nonce: &[u8]) -> Result<String, String> {
+        let key = self.cipher_key.as_ref().ok_or("Not unlocked")?;
+        let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| e.to_string())?;
+        let nonce = Nonce::from_slice(nonce);
+
+        let plaintext = cipher
+            .decrypt(nonce, encrypted)
+            .map_err(|_| "Decryption failed")?;
+
+        String::from_utf8(plaintext).map_err(|e| e.to_string())
+    }
+
     /// Save the vault using json to passwords.json
     fn save_vault(&self) {
         if let Some(vault) = &self.vault {
@@ -164,29 +213,34 @@ impl PixelVaultApp {
             fs::write("passwords.json", json).ok();
         }
     }
-    
+
     /// Tries to load vault from passwords.json
     fn load_vault(&mut self) {
         if let Ok(data) = fs::read_to_string("passwords.json") {
             self.vault = serde_json::from_str(&data).ok();
         }
     }
-    
+
     fn add_entry(&mut self) {
-        let entry = PasswordEntry {
-            service: self.new_service.clone(),
-            username: self.new_username.clone(),
-            encrypted_password: self.new_password.clone(),
-        };
-        
-        if let Some(vault) = &mut self.vault {
-            vault.entries.push(entry);
+        if let Ok((encrypted, nonce)) = self.encrypt_password(&self.new_password) {
+            let entry = PasswordEntry {
+                service: self.new_service.clone(),
+                username: self.new_username.clone(),
+                encrypted_password: encrypted,
+                nonce,
+            };
+
+            if let Some(vault) = &mut self.vault {
+                vault.entries.push(entry);
+            }
+            self.decrypted_passwords.push(None);
+
+            self.save_vault();
+
+            self.new_service.clear();
+            self.new_username.clear();
+            self.new_password.clear();
         }
-        self.decrypted_passwords.push(None);
-        
-        self.new_service.clear();
-        self.new_username.clear();
-        self.new_password.clear();
     }
 
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
@@ -208,7 +262,7 @@ impl eframe::App for PixelVaultApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("PixelSaver Password Manager");
             ui.add_space(10.0);
-            
+
             if !self.is_unlocked {
                 self.show_locked(ctx)
             } else {
