@@ -44,11 +44,28 @@ struct PixelVaultApp {
 }
 
 impl PixelVaultApp {
+    fn fancy_frame(&self, ui: &egui::Ui) -> egui::Frame {
+        egui::Frame::none()
+            .inner_margin(12)
+            .outer_margin(6)
+            .corner_radius(14)
+            .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
+            .fill(ui.visuals().panel_fill)
+            // .shadow(ui.visuals().popup_shadow)
+    }
+
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
+        // 
+        
+        let mut visuals = egui::Visuals::dark();
+        visuals.window_corner_radius = 12.0.into();
+        visuals.widgets.noninteractive.corner_radius = 8.0.into();
+        cc.egui_ctx.set_visuals(visuals);
+
         Self::default()
     }
 }
@@ -65,7 +82,11 @@ impl eframe::App for PixelVaultApp {
                     self.is_unlocked = true;
                 }
             } else {
-                ui.heading("Vault");
+                // Unlocked 
+                self.fancy_frame(ui).show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.heading("Unlocked Vault");
+                });
             }
         });
     }
