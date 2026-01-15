@@ -23,8 +23,9 @@ struct PasswordVault {
 struct PasswordEntry {
     service: String,
     username: String,
-    encrypted_password: Vec<u8>,
-    nonce: Vec<u8>,
+    // encrypted_password: Vec<u8>,
+    encrypted_password: String,
+    // nonce: Vec<u8>,
 }
 
 #[derive(Default)]
@@ -102,7 +103,7 @@ impl PixelVaultApp {
                
                if ui.button("Add Entry").clicked() && !self.new_service.is_empty() {
                    // Add entry here
-                   // self.add_entry();
+                   self.add_entry();
                }
             });
         });
@@ -134,6 +135,20 @@ impl PixelVaultApp {
         if let Ok(data) = fs::read_to_string("passwords.json") {
             self.vault = serde_json::from_str(&data).ok();
         }
+    }
+    
+    fn add_entry(&mut self) {
+        let entry = PasswordEntry {
+            service: self.new_service.clone(),
+            username: self.new_username.clone(),
+            encrypted_password: self.new_password.clone(),
+        };
+        
+        self.entries.push(entry);
+        
+        self.new_service.clear();
+        self.new_username.clear();
+        self.new_password.clear();
     }
 
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
