@@ -125,21 +125,24 @@ impl PixelVaultApp {
                             ui.group(|ui| {
                                 ui.label(format!("🌐 {}", entry.service));
                                 ui.label(format!("👤 {}", entry.username));
-
+                                
                                 ui.horizontal(|ui| {
-                                    if ui.button("Show Password").clicked() {
+                                    if Some(i) == self.show_password_index {
                                         if let Ok(password) = self.decrypt_password(
                                             &entry.encrypted_password,
                                             &entry.nonce,
                                         ) {
-                                            self.decrypted_passwords[i] = Some(password);
+                                            // self.decrypted_passwords[i] = Some(password);
+                                            ui.label(format!("🔑 {}", password));
                                         }
-                                    }
-
-                                    if let Some(password) = &self.decrypted_passwords[i] {
-                                        ui.label(format!("🔑 {}", password));
                                         if ui.button("Hide").clicked() {
-                                            self.decrypted_passwords[i] = None;
+                                            // Hide the password
+                                            self.show_password_index = None;
+                                        }
+                                    } else {
+                                        if ui.button("Show Password").clicked() {
+                                            // Reveal the password
+                                            self.show_password_index = Some(i);
                                         }
                                     }
                                 });
