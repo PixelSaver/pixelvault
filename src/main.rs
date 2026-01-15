@@ -53,6 +53,37 @@ impl PixelVaultApp {
             .fill(ui.visuals().panel_fill)
         // .shadow(ui.visuals().popup_shadow)
     }
+    
+    fn show_locked(&mut self, ctx: &egui::Context) {
+        egui::TopBottomPanel::top("header").show(ctx, |ui| {
+            self.fancy_frame(ui).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("Password Manager");
+                });
+                ui.horizontal(|ui| {
+                    ui.heading("Unlock Vault");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.master_password)
+                            .password(true),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Unlock").clicked() {
+                        // placeholder logic
+                        self.is_unlocked = true;
+                    }
+                })
+            });
+        });
+    }
+    fn show_unlocked(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            self.fancy_frame(ui).show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.heading("Unlocked Vault");
+            });
+        });
+    }
 
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
@@ -72,32 +103,10 @@ impl eframe::App for PixelVaultApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if !self.is_unlocked {
-                egui::TopBottomPanel::top("header").show(ctx, |ui| {
-                    self.fancy_frame(ui).show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.heading("Password Manager");
-                        });
-                        ui.horizontal(|ui| {
-                            ui.heading("Unlock Vault");
-                            ui.add(
-                                egui::TextEdit::singleline(&mut self.master_password)
-                                    .password(true),
-                            );
-                        });
-                        ui.horizontal(|ui| {
-                            if ui.button("Unlock").clicked() {
-                                // placeholder logic
-                                self.is_unlocked = true;
-                            }
-                        })
-                    });
-                });
+                self.show_locked(ctx);
             } else {
                 // Unlocked
-                self.fancy_frame(ui).show(ui, |ui| {
-                    ui.set_width(ui.available_width());
-                    ui.heading("Unlocked Vault");
-                });
+                self.show_unlocked(ctx);
             }
         });
     }
