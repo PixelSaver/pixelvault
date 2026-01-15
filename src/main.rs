@@ -9,10 +9,13 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 
 fn main() {
-    let native_options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([500.0, 600.0]),
+        ..Default::default()
+    };
     eframe::run_native(
         "PixelVault",
-        native_options,
+        options,
         Box::new(|cc| Ok(Box::new(PixelVaultApp::new(cc)))),
     )
     .unwrap(); // DEBUG Panics.
@@ -88,6 +91,9 @@ impl PixelVaultApp {
     fn show_unlocked(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.fancy_frame(ui).show(ui, |ui| {
+
+                ui.set_width(ui.available_width());
+
                 // Main interface
                 ui.horizontal(|ui| {
                     ui.heading("Add New Password");
@@ -120,35 +126,40 @@ impl PixelVaultApp {
                 if let Some(vault) = &mut self.vault {
                     let entries = vault.entries.clone();
 
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        for (i, entry) in entries.iter().enumerate() {
-                            ui.group(|ui| {
-                                ui.label(format!("🌐 {}", entry.service));
-                                ui.label(format!("👤 {}", entry.username));
-                                
-                                ui.horizontal(|ui| {
-                                    if Some(i) == self.show_password_index {
-                                        if let Ok(password) = self.decrypt_password(
-                                            &entry.encrypted_password,
-                                            &entry.nonce,
-                                        ) {
-                                            // self.decrypted_passwords[i] = Some(password);
-                                            ui.label(format!("🔑 {}", password));
+                    egui::ScrollArea::vertical()
+                        .auto_shrink(false)
+                        .show(ui, |ui| {
+                            ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                            for (i, entry) in entries.iter().enumerate() {
+                                self.fancy_frame(ui).outer_margin(3).show(ui, |ui| {
+                                    ui.set_width(ui.available_width());
+                                    ui.label(format!("🌐 {}", entry.service));
+                                    ui.label(format!("👤 {}", entry.username));
+
+                                    ui.horizontal(|ui| {
+                                        if Some(i) == self.show_password_index {
+                                            if let Ok(password) = self.decrypt_password(
+                                                &entry.encrypted_password,
+                                                &entry.nonce,
+                                            ) {
+                                                // self.decrypted_passwords[i] = Some(password);
+                                                ui.label(format!("🔑 {}", password));
+                                            }
+                                            if ui.button("Hide").clicked() {
+                                                // Hide the password
+                                                self.show_password_index = None;
+                                            }
+                                        } else {
+                                            if ui.button("Show Password").clicked() {
+                                                // Reveal the password
+                                                self.show_password_index = Some(i);
+                                            }
                                         }
-                                        if ui.button("Hide").clicked() {
-                                            // Hide the password
-                                            self.show_password_index = None;
-                                        }
-                                    } else {
-                                        if ui.button("Show Password").clicked() {
-                                            // Reveal the password
-                                            self.show_password_index = Some(i);
-                                        }
-                                    }
+                                    });
                                 });
-                            });
-                            ui.add_space(5.0);
-                        }
+                                ui.add_space(5.0);
+                            }
+                        });
                     });
                 }
             });
