@@ -1,5 +1,6 @@
 use eframe::egui;
 use serde::{Deserialize, Serialize};
+use std::fs;
 
 fn main() {
     let native_options = eframe::NativeOptions::default();
@@ -57,25 +58,51 @@ impl PixelVaultApp {
     fn show_locked(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("header").show(ctx, |ui| {
             self.fancy_frame(ui).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.heading("Password Manager");
-                });
-                ui.horizontal(|ui| {
-                    ui.heading("Unlock Vault");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.master_password)
-                            .password(true),
-                    );
-                });
-                ui.horizontal(|ui| {
-                    if ui.button("Unlock").clicked() {
-                        // placeholder logic
-                        self.is_unlocked = true;
-                    }
-                })
+                ui.set_width(ui.available_width());
+                
+                // Login screen
+                ui.label("Enter master password:");
+                let _response = ui.add(
+                    egui::TextEdit::singleline(&mut self.master_password)
+                        .password(true)
+                        .hint_text("Master password")
+                );
+                
+                if ui.button("Unlock").clicked() {
+                    self.unlock();
+                }
             });
         });
     }
+    
+    fn unlock(&mut self) {
+        if let Some(_vault) = &self.vault {
+            self.is_unlocked = true;
+        } else {
+            // Create new vault
+            self.vault = Some(PasswordVault {
+                salt: "todo".into(),
+                entries: vec![],
+            });
+            self.is_unlocked = true;
+        }
+    }
+    
+    /// Save the vault using json to passwords.json
+    fn save_vault(&self) {
+        if let Some(vault) = &self.vault {
+            let json = serde_json::to_string_pretty(vault).unwrap();
+            fs::write("passwords.json", json).ok();
+        }
+    }
+    
+    /// Tries to load vault from passwords.json
+    fn load_vault(&mut self) {
+        if let Ok(data) = fs::read_to_string("passwords.json") {
+            self.vault = serde_json::from_str(&data).ok();
+        }
+    }
+    
     fn show_unlocked(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.fancy_frame(ui).show(ui, |ui| {
@@ -102,8 +129,11 @@ impl PixelVaultApp {
 impl eframe::App for PixelVaultApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("PixelSaver Password Manager");
+            ui.add_space(10.0);
+            
             if !self.is_unlocked {
-                self.show_locked(ctx);
+                self.show_locked(ctx)
             } else {
                 // Unlocked
                 self.show_unlocked(ctx);
