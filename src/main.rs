@@ -42,7 +42,6 @@ struct PixelVaultApp {
     // Data
     vault: Option<PasswordVault>,
     cipher_key: Option<Vec<u8>>,
-    entries: Vec<PasswordEntry>,
     
     // Display
     show_password_index: Option<usize>,
@@ -115,30 +114,32 @@ impl PixelVaultApp {
                 ui.heading("Stored Passwords");
                 
                 // Clone entries to avoid borrow checker issues
-                let entries = self.entries.clone();
+                if let Some(vault) = &mut self.vault {
+                    let entries = vault.entries.clone();
                 
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    for (i, entry) in entries.iter().enumerate() {
-                        ui.group(|ui| {
-                            ui.label(format!("🌐 {}", entry.service));
-                            ui.label(format!("👤 {}", entry.username));
-                
-                            ui.horizontal(|ui| {
-                                if ui.button("Show Password").clicked() {
-                                    self.decrypted_passwords[i] = Some(entry.encrypted_password.clone());
-                                }
-                
-                                if let Some(password) = &self.decrypted_passwords[i] {
-                                    ui.label(format!("🔑 {}", password));
-                                    if ui.button("Hide").clicked() {
-                                        self.decrypted_passwords[i] = None;
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        for (i, entry) in entries.iter().enumerate() {
+                            ui.group(|ui| {
+                                ui.label(format!("🌐 {}", entry.service));
+                                ui.label(format!("👤 {}", entry.username));
+                    
+                                ui.horizontal(|ui| {
+                                    if ui.button("Show Password").clicked() {
+                                        self.decrypted_passwords[i] = Some(entry.encrypted_password.clone());
                                     }
-                                }
+                    
+                                    if let Some(password) = &self.decrypted_passwords[i] {
+                                        ui.label(format!("🔑 {}", password));
+                                        if ui.button("Hide").clicked() {
+                                            self.decrypted_passwords[i] = None;
+                                        }
+                                    }
+                                });
                             });
-                        });
-                        ui.add_space(5.0);
-                    }
-                });
+                            ui.add_space(5.0);
+                        }
+                    });
+                }
             });
         });
     }
@@ -178,7 +179,9 @@ impl PixelVaultApp {
             encrypted_password: self.new_password.clone(),
         };
         
-        self.entries.push(entry);
+        if let Some(vault) = &mut self.vault {
+            vault.entries.push(entry);
+        }
         self.decrypted_passwords.push(None);
         
         self.new_service.clear();
