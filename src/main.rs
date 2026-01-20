@@ -7,6 +7,7 @@ use argon2::{Argon2, PasswordHasher};
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use chrono;
 
 fn main() {
   let options = eframe::NativeOptions {
@@ -276,14 +277,17 @@ impl PixelVaultApp {
       ui.separator();
 
       if ui.button("➕ Create New Vault").clicked() {
-        let path = format!("vaults/new_vault.json");
-        if self.available_vaults.iter().any(|v| {v == &path}) {
-          self.load_vault_from_path(&path).unwrap();
-        } else {
-          self.state = AppState::Locked {
-            is_new: true,
-          };
-        }
+        let vault_name = format!("vault_{}", chrono::Utc::now().timestamp());
+        let path = format!("vaults/{}.json", vault_name);
+        self.selected_vault = Some(path.clone());
+        self.state = AppState::Locked {
+          is_new: true,
+        };
+      }
+      
+      if !self.error_message.is_empty() {
+        ui.add_space(10.0);
+        ui.colored_label(egui::Color32::RED, &self.error_message);
       }
     });
   }
