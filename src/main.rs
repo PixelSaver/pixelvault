@@ -242,6 +242,10 @@ impl PixelVaultApp {
                             self.show_password_index = Some(i);
                           }
                         }
+                        
+                        if ui.button("Delete").clicked() {
+                          self.delete_entry(i);
+                        }
                       });
                     });
                     ui.add_space(5.0);
@@ -473,6 +477,25 @@ impl PixelVaultApp {
       }
       Err(e) => {
         self.error_message = format!("Failed to encrypt: {}", e);
+      }
+    }
+  }
+  
+  fn delete_entry(&mut self, index: usize) {
+    if let Some(vault) = &mut self.vault {
+      if index < vault.entries.len() {
+        vault.entries.remove(index);
+        self.save_vault();
+        
+        // Delete password show if the entry is deleted
+        if self.show_password_index == Some(index) {
+          self.show_password_index = None;
+        } else if let Some(pass_idx) = self.show_password_index {
+          // Take one away if the index is after the deleted entry
+          if pass_idx > index {
+            self.show_password_index = Some(pass_idx-1);
+          }
+        }
       }
     }
   }
