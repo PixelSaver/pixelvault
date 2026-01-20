@@ -100,11 +100,15 @@ impl PixelVaultApp {
   }
 
   fn show_locked(&mut self, ctx: &egui::Context) {
-    egui::TopBottomPanel::top("header").show(ctx, |ui| {
+    egui::CentralPanel::default().show(ctx, |ui| {
       self.fancy_frame(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
         
-        ui.label(format!("Vault: {}", self.selected_vault.as_ref().unwrap()));
+        if let Some(vault_name) = &self.selected_vault {
+          let display_name = vault_name.trim_start_matches("vaults/")
+            .trim_end_matches(".json");
+          ui.label(format!("Vault: {}", display_name));
+        }
         
         // Login screen
         match &self.state {
@@ -118,24 +122,32 @@ impl PixelVaultApp {
           }
           _ => {}
         }
-        let _response = ui.add(
+        let response = ui.add(
           egui::TextEdit::singleline(&mut self.master_password)
             .password(true)
             .hint_text("Master password"),
         );
-
+        
+        // If lost focus or enter key
+        if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            self.attempt_unlock();
+        }
+        
         if ui.button("Unlock").clicked() {
-          match &self.state {
-            AppState::Locked { is_new } => {
-              if *is_new {
-                self.create_new_vault(&format!("vaults/new_vault.json"));
-              }
-              else {
-                self.unlock();
-              }
-            }
-            _ => {}
-          }
+          self.attempt_unlock();
+        }
+        
+        if !self.error_message.is_empty() {
+          ui.add_space(10.0);
+          ui.colored_label(egui::Color32::RED, &self.error_message);
+        }
+        
+        if ui.button("Back to Vaults").clicked() {
+          self.state = AppState::SelectVault;
+          self.master_password.clear();
+          self.error_message.clear();
+          self.vault = None;
+          self.cipher_key = None;
         }
       });
     });
@@ -398,24 +410,33 @@ impl PixelVaultApp {
   }
 
   fn add_entry(&mut self) {
-    if let Ok((encrypted, nonce)) = self.encrypt_password(&self.new_password) {
-      let entry = PasswordEntry {
-        service: self.new_service.clone(),
-        username: self.new_username.clone(),
-        encrypted_password: encrypted,
-        nonce,
-      };
-
-      if let Some(vault) = &mut self.vault {
-        vault.entries.push(entry);
+    if self.new_service.is_empty() {
+      return;
+    }
+    
+    match self.encrypt_password(&self.new_password) {
+      Ok((encrypted, nonce)) => {
+        let entry = PasswordEntry {
+          service: self.new_service.clone(),
+          username: self.new_username.clone(),
+          encrypted_password: encrypted,
+          nonce,
+        };
+        
+        if let Some(vault) = &mut self.vault {
+          vault.entries.push(entry);
+        }
+        self.decrypted_passwords.push(None);
+        
+        self.save_vault();
+        
+        self.new_service.clear();
+        self.new_username.clear();
+        self.new_password.clear(); 
       }
-      self.decrypted_passwords.push(None);
-
-      self.save_vault();
-
-      self.new_service.clear();
-      self.new_username.clear();
-      self.new_password.clear();
+      Err(e) => {
+        self.error_message = format!("Failed to encrypt: {}", e);
+      }
     }
   }
 
@@ -442,7 +463,6 @@ impl PixelVaultApp {
 
 impl eframe::App for PixelVaultApp {
   fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-    egui::CentralPanel::default().show(ctx, |ui| {
       match &self.state {
         AppState::SelectVault => {
           egui::CentralPanel::default().show(ctx, |ui| {
@@ -456,6 +476,5 @@ impl eframe::App for PixelVaultApp {
           self.show_unlocked(ctx);
         }
       }
-    });
   }
 }
