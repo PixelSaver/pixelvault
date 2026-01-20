@@ -23,9 +23,12 @@ fn main() {
 
 #[derive(Serialize, Deserialize)]
 struct PasswordVault {
-  /// Public info used to derive master password (not implemented)
+  /// Public info used to derive master password
   salt: String,
   entries: Vec<PasswordEntry>,
+  // Unencryption check for master password when entries is empty
+  // check: String,
+  // TODO
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -130,7 +133,7 @@ impl PixelVaultApp {
         
         // If lost focus or enter key
         if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-            self.attempt_unlock();
+          self.attempt_unlock();
         }
         
         if ui.button("Unlock").clicked() {
@@ -141,6 +144,8 @@ impl PixelVaultApp {
           ui.add_space(10.0);
           ui.colored_label(egui::Color32::RED, &self.error_message);
         }
+        
+        ui.add_space(10.0);
         
         if ui.button("Back to Vaults").clicked() {
           self.state = AppState::SelectVault;
@@ -154,6 +159,16 @@ impl PixelVaultApp {
   }
 
   fn show_unlocked(&mut self, ctx: &egui::Context) {
+    egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
+        ui.horizontal(|ui| {
+            ui.heading("🔓 PixelVault");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("🔒 Lock").clicked() {
+                    self.lock_vault();
+                }
+            });
+        });
+    });
     egui::CentralPanel::default().show(ctx, |ui| {
       self.fancy_frame(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
@@ -188,43 +203,52 @@ impl PixelVaultApp {
 
         // Clone entries to avoid borrow checker issues
         if let Some(vault) = &mut self.vault {
-          let entries = vault.entries.clone();
+          if vault.entries.is_empty() {
+            ui.label("No stored passwords yet.");
+          } else {
+            let entries = vault.entries.clone();
 
-          egui::ScrollArea::vertical()
-            .auto_shrink(false)
-            .show(ui, |ui| {
-              ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                for (i, entry) in entries.iter().enumerate() {
-                  self.fancy_frame(ui).outer_margin(3).show(ui, |ui| {
-                    ui.set_width(ui.available_width());
-                    ui.label(format!("🌐 {}", entry.service));
-                    ui.label(format!("👤 {}", entry.username));
+            egui::ScrollArea::vertical()
+              .auto_shrink(false)
+              .show(ui, |ui| {
+                ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                  for (i, entry) in entries.iter().enumerate() {
+                    self.fancy_frame(ui).outer_margin(3).show(ui, |ui| {
+                      ui.set_width(ui.available_width());
+                      ui.label(format!("🌐 {}", entry.service));
+                      ui.label(format!("👤 {}", entry.username));
 
-                    ui.horizontal(|ui| {
-                      if Some(i) == self.show_password_index {
-                        if let Ok(password) = self.decrypt_password(
-                          &entry.encrypted_password,
-                          &entry.nonce,
-                        ) {
-                          // self.decrypted_passwords[i] = Some(password);
-                          ui.label(format!("🔑 {}", password));
+                      ui.horizontal(|ui| {
+                        if Some(i) == self.show_password_index {
+                          match self.decrypt_password(
+                            &entry.encrypted_password,
+                            &entry.nonce,
+                          ) {
+                            Ok(password) => {
+                              ui.label(format!("🔑 {}", password));
+                            }
+                            Err(e) => {
+                              ui.colored_label(egui::Color32::RED, 
+                                  format!("Error: {}", e));
+                            }
+                          }
+                          if ui.button("Hide").clicked() {
+                            // Hide the password
+                            self.show_password_index = None;
+                          }
+                        } else {
+                          if ui.button("Show Password").clicked() {
+                            // Reveal the password
+                            self.show_password_index = Some(i);
+                          }
                         }
-                        if ui.button("Hide").clicked() {
-                          // Hide the password
-                          self.show_password_index = None;
-                        }
-                      } else {
-                        if ui.button("Show Password").clicked() {
-                          // Reveal the password
-                          self.show_password_index = Some(i);
-                        }
-                      }
+                      });
                     });
-                  });
-                  ui.add_space(5.0);
-                }
+                    ui.add_space(5.0);
+                  }
+                });
               });
-            });
+          }
         }
       });
     });
@@ -334,6 +358,19 @@ impl PixelVaultApp {
     // let key = self.derive_key(&self.master_password, &vault.salt);
     // self.cipher_key = Some(key);
     // self.state = AppState::Unlocked;
+  }
+  
+  fn lock_vault(&mut self) {
+    self.state = AppState::SelectVault;
+    self.master_password.clear();
+    self.cipher_key = None;
+    self.show_password_index = None;
+    self.new_service.clear();
+    self.new_username.clear();
+    self.new_password.clear();
+    self.vault = None;
+    self.selected_vault = None;
+    self.error_message.clear();
   }
 
   fn create_new_vault(&mut self, path: &str) {
