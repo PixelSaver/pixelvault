@@ -8,6 +8,7 @@ use eframe::egui;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use chrono;
+use egui::{Ui, Layout, Align, InnerResponse};
 
 fn main() {
   let options = eframe::NativeOptions {
@@ -265,13 +266,26 @@ impl PixelVaultApp {
       ui.add_space(10.0);
 
       for vault in self.available_vaults.clone() {
-        if ui.button(&vault).clicked() {
-          self.selected_vault = Some(vault.clone());
-          self.state = AppState::Locked {
-            is_new: false,
-          };
-          self.load_vault_from_path(&vault).unwrap();
-        }
+        ui.columns(2, |columns| {
+          columns[0].horizontal(|ui| {
+            if ui.button(&vault).clicked() {
+              self.selected_vault = Some(vault.clone());
+              self.state = AppState::Locked {
+                is_new: false,
+              };
+              self.load_vault_from_path(&vault).unwrap();
+            }
+          });
+          columns[1].horizontal(|ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+              if ui.button("Remove vault").clicked() {
+                if let Some(pos) = self.available_vaults.iter().position(|x| *x == vault) {
+                  self.available_vaults.swap_remove(pos);
+                }
+              } 
+            });
+          });
+        });
       }
 
       ui.separator();
