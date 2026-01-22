@@ -241,7 +241,7 @@ impl PixelVaultApp {
                           col1.horizontal(|ui| {
                             match self.decrypt_password(
                               &entry.encrypted_password,
-                              &entry.nonce,) {
+                              &entry.nonce,) {  
                                 Ok(password) => {
                                   ui.label(format!("🔑 {}", password));
                                 }
@@ -262,7 +262,34 @@ impl PixelVaultApp {
                           });
                         } else {
                           col1.horizontal(|ui| {
-                            ui.label("🔑 ••••••••••••••••••")
+                            let mut copied = false;
+                            let password = self
+                              .decrypt_password(&entry.encrypted_password, &entry.nonce)
+                              .ok();
+                          
+                            let response = ui.allocate_response(
+                                ui.available_size_before_wrap(),
+                                egui::Sense::click(),
+                            );
+                            
+                            ui.painter().text(
+                                response.rect.left_center(),
+                                egui::Align2::LEFT_CENTER,
+                                "🔑 ••••••••••••••••••",
+                                egui::TextStyle::Monospace.resolve(ui.style()),
+                                ui.visuals().text_color(),
+                            );
+                            
+                            if response.clicked() {
+                                ui.ctx().copy_text(password.unwrap_or_default().to_owned());
+                                copied = true;
+                            }
+                            
+                            if copied {
+                                response.on_hover_text("Copied!");
+                            } else {
+                                response.on_hover_text("Click to copy password");
+                            }
                           });
                           col2.horizontal(|ui| {
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
@@ -565,19 +592,19 @@ impl PixelVaultApp {
 }
 
 impl eframe::App for PixelVaultApp {
-fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-match &self.state {
-AppState::SelectVault => {
-egui::CentralPanel::default().show(ctx, |ui| {
-self.show_select_vault(ui);
-});
-}
-AppState::Locked { .. } => {
-self.show_locked(ctx);
-}
-AppState::Unlocked => {
-self.show_unlocked(ctx);
-}
-}
-}
+  fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    match &self.state {
+      AppState::SelectVault => {
+        egui::CentralPanel::default().show(ctx, |ui| {
+          self.show_select_vault(ui);
+        });
+      }
+      AppState::Locked { .. } => {
+        self.show_locked(ctx);
+      }
+      AppState::Unlocked => {
+        self.show_unlocked(ctx);
+      }
+    }
+  }
 }
