@@ -216,100 +216,8 @@ impl PixelVaultApp {
               .auto_shrink(false)
               .show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                  for (i, entry) in entries.iter().enumerate() {
-                    self.fancy_frame(ui).outer_margin(3).show(ui, |ui| {
-                      ui.set_width(ui.available_width());
-                      ui.columns_const(|[col1, col2]| {
-                        col1.horizontal(|ui| {
-                          ui.label(format!("🌐 {}", entry.service));
-                        });
-                        col2.horizontal(|ui| {
-                          ui.with_layout(
-                            egui::Layout::right_to_left(
-                              egui::Align::Min,
-                            ),
-                            |ui| {
-                              if ui.button("Delete").clicked() {
-                                self.delete_entry(i);
-                              }
-                            },
-                          );
-                        });
-                      });
-                      ui.label(format!("👤 {}", entry.username));
-
-                      ui.columns_const(|[col1, col2]| {
-                        col1.horizontal(|ui| {
-                          if Some(i) == self.show_password_index {
-                            match self.decrypt_password(&entry.encrypted_password, &entry.nonce) {
-                              Ok(password) => {
-                                let response = ui.add(
-                                  egui::Label::new(format!("🔑 {}", password))
-                                    .sense(egui::Sense::click())
-                                );
-                                if response.clicked() {
-                                  ui.ctx().copy_text(password.clone());
-                                  self.toasts.add(Toast {
-                                    text: "Password copied!".into(),
-                                    kind: ToastKind::Success,
-                                    options: ToastOptions::default()
-                                      .duration_in_seconds(2.0)
-                                      .show_progress(true),
-                                    style: ToastStyle::default(),
-                                  });
-                                }
-                                response.on_hover_text("Click to copy");
-                              }
-                              Err(e) => {
-                                ui.colored_label(egui::Color32::RED, format!("Error: {}", e));
-                              }
-                            }
-                          }
-                          else {
-                            // Password hidden, show dots and still do click to copy
-                            let password = self.decrypt_password(
-                              &entry.encrypted_password, 
-                              &entry.nonce
-                            ).unwrap_or_default();
-                            
-                            let response = ui.add(
-                              egui::Label::new("🔑 ••••••••••••••")
-                                .sense(egui::Sense::click())
-                            );
-                            
-                            if response.clicked() {
-                              ui.ctx().copy_text(password.clone());
-                              self.toasts.add(Toast {
-                                text: "Password copied!".into(),
-                                kind: ToastKind::Success,
-                                options: ToastOptions::default()
-                                  .duration_in_seconds(2.0)
-                                  .show_progress(true),
-                                style: ToastStyle::default(),
-                              });
-                            }
-                            
-                            response.on_hover_text("Click to copy password");
-                          }
-                        });
-                        
-                        col2.horizontal(|ui| {
-                          ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                            if Some(i) == self.show_password_index {
-                              if ui.button("Hide").clicked() {
-                                // Hide the password
-                                self.show_password_index = None;
-                              }
-                            } else {
-                              if ui.button("Show").clicked() {
-                                self.show_password_index = Some(i);
-                              }
-                            }
-                          });
-                        });
-                      });
-                    });
-                    ui.add_space(5.0);
+                  for (i,  entry) in entries.iter().enumerate() {
+                    self.show_password_entry(ui, entry, i);
                   }
                 });
               });
@@ -318,7 +226,103 @@ impl PixelVaultApp {
       });
     });
   }
-
+  
+  fn show_password_entry(&mut self, ui: &mut egui::Ui, entry: &PasswordEntry, index: usize) {
+    self.fancy_frame(ui).outer_margin(3).show(ui, |ui| {
+      ui.set_width(ui.available_width());
+      ui.columns_const(|[col1, col2]| {
+        col1.horizontal(|ui| {
+          ui.label(format!("🌐 {}", entry.service));
+        });
+        col2.horizontal(|ui| {
+          ui.with_layout(
+            egui::Layout::right_to_left(
+              egui::Align::Min,
+            ),
+            |ui| {
+              if ui.button("Delete").clicked() {
+                self.delete_entry(index);
+              }
+            },
+          );
+        });
+      });
+      ui.label(format!("👤 {}", entry.username));
+      
+      ui.columns_const(|[col1, col2]| {
+        col1.horizontal(|ui| {
+          if Some(index) == self.show_password_index {
+            match self.decrypt_password(&entry.encrypted_password, &entry.nonce) {
+              Ok(password) => {
+                let response = ui.add(
+                  egui::Label::new(format!("🔑 {}", password))
+                    .sense(egui::Sense::click())
+                );
+                if response.clicked() {
+                  ui.ctx().copy_text(password.clone());
+                  self.toasts.add(Toast {
+                    text: "Password copied!".into(),
+                    kind: ToastKind::Success,
+                    options: ToastOptions::default()
+                      .duration_in_seconds(2.0)
+                      .show_progress(true),
+                    style: ToastStyle::default(),
+                  });
+                }
+                response.on_hover_text("Click to copy");
+              }
+              Err(e) => {
+                ui.colored_label(egui::Color32::RED, format!("Error: {}", e));
+              }
+            }
+          }
+          else {
+            // Password hidden, show dots and still do click to copy
+            let password = self.decrypt_password(
+              &entry.encrypted_password, 
+              &entry.nonce
+            ).unwrap_or_default();
+            
+            let response = ui.add(
+              egui::Label::new("🔑 ••••••••••••••")
+                .sense(egui::Sense::click())
+            );
+            
+            if response.clicked() {
+              ui.ctx().copy_text(password.clone());
+              self.toasts.add(Toast {
+                text: "Password copied!".into(),
+                kind: ToastKind::Success,
+                options: ToastOptions::default()
+                  .duration_in_seconds(2.0)
+                  .show_progress(true),
+                style: ToastStyle::default(),
+              });
+            }
+            
+            response.on_hover_text("Click to copy password");
+          }
+        });
+        
+        col2.horizontal(|ui| {
+          ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+            let (button_text, new_pass_idx) = if Some(index) == self.show_password_index {
+              ("Hide", None)
+            } else {
+              ("Show", Some(index))
+            };
+            
+            if ui.button(button_text).clicked() {
+              self.show_password_index = new_pass_idx;
+            }
+          });
+        });
+      });
+    });
+    ui.add_space(5.0);
+  }
+  
+  
   fn show_select_vault(&mut self, ui: &mut egui::Ui) {
     self.fancy_frame(ui).show(ui, |ui| {
       ui.heading("Choose a Vault");
