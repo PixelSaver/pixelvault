@@ -6,7 +6,8 @@ use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
 use chrono;
 use eframe::egui;
-use egui::{Align, InnerResponse, Layout, Ui};
+use egui::{Align, Align2, InnerResponse, Layout, Ui};
+use egui_toast::{Toast, ToastKind, ToastOptions, ToastStyle, Toasts};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
@@ -76,6 +77,7 @@ struct PixelVaultApp {
   show_password_index: Option<usize>,
   decrypted_passwords: Vec<Option<String>>,
   error_message: String,
+  toasts: Toasts,
 }
 
 impl PixelVaultApp {
@@ -237,70 +239,74 @@ impl PixelVaultApp {
                       ui.label(format!("👤 {}", entry.username));
 
                       ui.columns_const(|[col1, col2]| {
-                        if Some(i) == self.show_password_index {
-                          col1.horizontal(|ui| {
-                            match self.decrypt_password(
-                              &entry.encrypted_password,
-                              &entry.nonce,) {  
-                                Ok(password) => {
-                                  ui.label(format!("🔑 {}", password));
+                        col1.horizontal(|ui| {
+                          if Some(i) == self.show_password_index {
+                            match self.decrypt_password(&entry.encrypted_password, &entry.nonce) {
+                              Ok(password) => {
+                                let response = ui.add(
+                                  egui::Label::new(format!("🔑 {}", password))
+                                    .sense(egui::Sense::click())
+                                );
+                                if response.clicked() {
+                                  ui.ctx().copy_text(password.clone());
+                                  self.toasts.add(Toast {
+                                    text: "Password copied!".into(),
+                                    kind: ToastKind::Success,
+                                    options: ToastOptions::default()
+                                      .duration_in_seconds(2.0)
+                                      .show_progress(true),
+                                    style: ToastStyle::default(),
+                                  });
                                 }
-                                Err(e) => {
-                                  ui.colored_label(
-                                    egui::Color32::RED,
-                                    format!("Error: {}", e),
-                                  );
-                                }
-                              }});
-                          col2.horizontal(|ui| {
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                                response.on_hover_text("Click to copy");
+                              }
+                              Err(e) => {
+                                ui.colored_label(egui::Color32::RED, format!("Error: {}", e));
+                              }
+                            }
+                          }
+                          else {
+                            // Password hidden, show dots and still do click to copy
+                            let password = self.decrypt_password(
+                              &entry.encrypted_password, 
+                              &entry.nonce
+                            ).unwrap_or_default();
+                            
+                            let response = ui.add(
+                              egui::Label::new("🔑 ••••••••••••••")
+                                .sense(egui::Sense::click())
+                            );
+                            
+                            if response.clicked() {
+                              ui.ctx().copy_text(password.clone());
+                              self.toasts.add(Toast {
+                                text: "Password copied!".into(),
+                                kind: ToastKind::Success,
+                                options: ToastOptions::default()
+                                  .duration_in_seconds(2.0)
+                                  .show_progress(true),
+                                style: ToastStyle::default(),
+                              });
+                            }
+                            
+                            response.on_hover_text("Click to copy password");
+                          }
+                        });
+                        
+                        col2.horizontal(|ui| {
+                          ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                            if Some(i) == self.show_password_index {
                               if ui.button("Hide").clicked() {
                                 // Hide the password
                                 self.show_password_index = None;
                               }
-                            });
-                          });
-                        } else {
-                          col1.horizontal(|ui| {
-                            let mut copied = false;
-                            let password = self
-                              .decrypt_password(&entry.encrypted_password, &entry.nonce)
-                              .ok();
-                          
-                            let response = ui.allocate_response(
-                                ui.available_size_before_wrap(),
-                                egui::Sense::click(),
-                            );
-                            
-                            ui.painter().text(
-                                response.rect.left_center(),
-                                egui::Align2::LEFT_CENTER,
-                                "🔑 ••••••••••••••••••",
-                                egui::TextStyle::Monospace.resolve(ui.style()),
-                                ui.visuals().text_color(),
-                            );
-                            
-                            if response.clicked() {
-                                ui.ctx().copy_text(password.unwrap_or_default().to_owned());
-                                copied = true;
-                            }
-                            
-                            if copied {
-                                response.on_hover_text("Copied!");
                             } else {
-                                response.on_hover_text("Click to copy password");
-                            }
-                          });
-                          col2.horizontal(|ui| {
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                              if ui.button("Show Password").clicked() {
-                                // Reveal the password
+                              if ui.button("Show").clicked() {
                                 self.show_password_index = Some(i);
                               }
-                            });
+                            }
                           });
-                          
-                        }
+                        });
                       });
                     });
                     ui.add_space(5.0);
@@ -586,13 +592,18 @@ impl PixelVaultApp {
     Self {
       state: AppState::SelectVault,
       available_vaults: Self::load_available_vaults(),
+      toasts: Toasts::new()
+          .anchor(egui::Align2::RIGHT_BOTTOM, (-10.0, -10.0))
+          .direction(egui::Direction::BottomUp),
       ..Default::default()
+      
     }
   }
 }
 
 impl eframe::App for PixelVaultApp {
   fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    self.toasts.show(ctx);
     match &self.state {
       AppState::SelectVault => {
         egui::CentralPanel::default().show(ctx, |ui| {
