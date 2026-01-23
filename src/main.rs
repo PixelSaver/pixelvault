@@ -180,14 +180,9 @@ impl PixelVaultApp {
                   .hint_text("Vault Name"),
               );
               if name_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                let vault_path = format!("vaults/{}.json", self.new_vault_name);
-                if self.available_vaults.contains(&vault_path) {
-                  self.show_warning("Vault already exists");
-                }
-                else {
-                  self.create_new_vault(&vault_path);
-                }
+                self.attempt_create_vault();
               }
+              // Grab focus on first enter
               if self.new_vault_name.is_empty() {
                 name_response.request_focus();
               }
@@ -199,7 +194,16 @@ impl PixelVaultApp {
                   .hint_text("Choose a strong master password"),
               );
               if pass_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                self.create_new_vault(&format!("vaults/{}.json", self.new_vault_name));
+                self.attempt_create_vault();
+              }
+              let pass_confirm_response = ui.add(
+                egui::TextEdit::singleline(&mut self.master_password_confirm)
+                  .password(true)
+                  .desired_width(ui.available_width())
+                  .hint_text("Confirm your master password"),
+              );
+              if pass_confirm_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                self.attempt_create_vault();
               }
               
               ui.add_space(10.0);
@@ -216,7 +220,7 @@ impl PixelVaultApp {
                 col2.horizontal(|ui| {
                   ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                     if ui.button("Create New Vault").clicked() {
-                      self.create_new_vault(&format!("vaults/{}.json", self.new_vault_name));
+                      self.attempt_create_vault();
                     }
                   });
                 });
@@ -511,6 +515,30 @@ impl PixelVaultApp {
     self.vault = Some(vault);
     self.selected_vault = Some(path.to_string());
     Ok(())
+  }
+  
+  fn attempt_create_vault(&mut self) {
+    if self.new_vault_name.trim().is_empty() {
+      self.show_error("Vault name cannot be empty");
+      return;
+    } else if self.master_password.is_empty() {
+      self.show_error("Vault master password cannot be empty");
+      return;
+    } else if self.master_password != self.master_password_confirm {
+      self.show_error("Passwords do not match");
+      return;
+    }
+    // Maybe the code for the fallback will be useful someday?
+    let _fallback_vault_name = format!("vault_{}", chrono::Utc::now().timestamp());
+    let path = format!("vaults/{}.json", self.new_vault_name.trim());
+    if self.available_vaults.contains(&path) {
+      self.show_error("Vault already exists");
+      return;
+    }
+    self.state = AppState::Unlocked;
+    self.selected_vault = Some(path.clone());
+    self.create_new_vault(&path);
+    self.show_success("Vault created successfully!");
   }
 
   /// Function to try to unlock the vault using self.master_password,
