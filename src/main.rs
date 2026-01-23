@@ -293,7 +293,24 @@ impl PixelVaultApp {
           );
         });
       });
-      ui.label(format!("👤 {}", entry.username));
+      let response = ui.add(
+        egui::Label::new(format!("👤 {}", entry.username))
+          .sense(egui::Sense::click())
+      );
+      
+      if response.clicked() {
+        ui.ctx().copy_text(entry.username.clone());
+        self.toasts.add(Toast {
+          text: "Username copied!".into(),
+          kind: ToastKind::Success,
+          options: ToastOptions::default()
+            .duration_in_seconds(2.0)
+            .show_progress(true),
+          style: ToastStyle::default(),
+        });
+      }
+      
+      response.on_hover_text("Click to copy username");
       
       ui.columns_const(|[col1, col2]| {
         col1.horizontal(|ui| {
