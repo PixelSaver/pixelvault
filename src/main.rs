@@ -63,6 +63,10 @@ struct PixelVaultApp {
   selected_vault: Option<String>,
 
   master_password: String,
+  master_password_confirm: String,
+  
+  // Vault creation
+  new_vault_name: String,
 
   // Entry form fields
   new_service: String,
@@ -163,51 +167,96 @@ impl PixelVaultApp {
       });
     });
     egui::CentralPanel::default().show(ctx, |ui| {
-      self.fancy_frame(ui).show(ui, |ui| {
+    self.fancy_frame(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
-
-        if let Some(vault_name) = &self.selected_vault {
-          let display_name = vault_name
-            .trim_start_matches("vaults/")
-            .trim_end_matches(".json");
-          ui.label(format!("Vault: {}", display_name));
-          ui.add_space(10.0);
-        }
-
-        // Login screen
+        
         match &self.state {
           AppState::Locked { is_new } => {
             if *is_new {
-              ui.label("Set the master password:");
+              ui.label("Create a new vault");
+              let name_response = ui.add(
+                egui::TextEdit::singleline(&mut self.new_vault_name)
+                  .desired_width(ui.available_width())
+                  .hint_text("Vault Name"),
+              );
+              if name_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                let vault_path = format!("vaults/{}.json", self.new_vault_name);
+                if self.available_vaults.contains(&vault_path) {
+                  self.show_warning("Vault already exists");
+                }
+                else {
+                  self.create_new_vault(&vault_path);
+                }
+              }
+              if self.new_vault_name.is_empty() {
+                name_response.request_focus();
+              }
+              
+              let pass_response = ui.add(
+                egui::TextEdit::singleline(&mut self.master_password)
+                  .password(true)
+                  .desired_width(ui.available_width())
+                  .hint_text("Choose a strong master password"),
+              );
+              if pass_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                self.create_new_vault(&format!("vaults/{}.json", self.new_vault_name));
+              }
+              
+              ui.add_space(10.0);
+              
+              ui.columns_const(|[col1, col2]| {
+                col1.horizontal(|ui| {
+                  if ui.button("Back to Vaults").clicked() {
+                    self.state = AppState::SelectVault;
+                    self.master_password.clear();
+                    self.vault = None;
+                    self.cipher_key = None;
+                  }
+                });
+                col2.horizontal(|ui| {
+                  ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                    if ui.button("Create New Vault").clicked() {
+                      self.create_new_vault(&format!("vaults/{}.json", self.new_vault_name));
+                    }
+                  });
+                });
+              });
+              
+              
             } else {
+              if let Some(vault_name) = &self.selected_vault {
+                let display_name = vault_name
+                  .trim_start_matches("vaults\\")
+                  .trim_end_matches(".json");
+                ui.label(format!("Vault: {}", display_name));
+                ui.add_space(10.0);
+              }
               ui.label("Enter the correct master password");
+              let response = ui.add(
+                egui::TextEdit::singleline(&mut self.master_password)
+                  .password(true)
+                  .desired_width(ui.available_width())
+                  .hint_text("Master password"),
+              );
+              if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                self.attempt_unlock();
+              }
+              
+              if ui.button("Unlock").clicked() {
+                self.attempt_unlock();
+              }
+              
+              ui.add_space(10.0);
+              
+              if ui.button("Back to Vaults").clicked() {
+                self.state = AppState::SelectVault;
+                self.master_password.clear();
+                self.vault = None;
+                self.cipher_key = None;
+              }
             }
           }
           _ => {}
-        }
-        let response = ui.add(
-          egui::TextEdit::singleline(&mut self.master_password)
-            .password(true)
-            .desired_width(ui.available_width())
-            .hint_text("Master password"),
-        );
-
-        // If lost focus or enter key
-        if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-          self.attempt_unlock();
-        }
-
-        if ui.button("Unlock").clicked() {
-          self.attempt_unlock();
-        }
-
-        ui.add_space(10.0);
-
-        if ui.button("Back to Vaults").clicked() {
-          self.state = AppState::SelectVault;
-          self.master_password.clear();
-          self.vault = None;
-          self.cipher_key = None;
         }
       });
     });
@@ -400,53 +449,58 @@ impl PixelVaultApp {
       self.fancy_frame(ui).show(ui, |ui| {
         ui.heading("Choose a Vault");
         ui.add_space(10.0);
-      } else {
-        for vault in self.available_vaults.clone() {
-          let display_name = vault
-            .trim_start_matches("vaults/")
-            .trim_end_matches(".json");
-          
-          ui.columns_const(|[col1, col2]| {
-            col1.horizontal(|ui| {
-              if ui.button(display_name).clicked() {
-                match self.load_vault_from_path(&vault) {
-                  Ok(_) => {
-                    self.selected_vault = Some(vault.clone());
-                    self.state = AppState::Locked { is_new: false };
-                  }
-                  Err(e) => {
-                    self.show_error(format!("Failed to load vault: {}", e));
-                  }
-                }
-              }
-            });
-            col2.horizontal(|ui| {
-              ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                if ui.small_button("🗑").on_hover_text("Delete vault").clicked() {
-                  if let Err(e) = fs::remove_file(&vault) {
-                    self.show_error(format!("Failed to delete vault: {}", e));
-                  } else
-                  {
-                    self.show_info(format!("Deleted vault '{}'", display_name));
-                    self.available_vaults = Self::load_available_vaults()
+        
+        if self.available_vaults.is_empty() {
+          ui.label("No vaults found. Create one to get started!");
+          ui.add_space(10.0);
+        } else {
+          for vault in self.available_vaults.clone() {
+            let display_name = vault
+              .trim_start_matches("vaults\\")
+              .trim_end_matches(".json");
+            
+            ui.columns_const(|[col1, col2]| {
+              col1.horizontal(|ui| {
+                if ui.button(display_name).clicked() {
+                  match self.load_vault_from_path(&vault) {
+                    Ok(_) => {
+                      self.selected_vault = Some(vault.clone());
+                      self.state = AppState::Locked { is_new: false };
+                    }
+                    Err(e) => {
+                      self.show_error(format!("Failed to load vault: {}", e));
+                    }
                   }
                 }
-                
+              });
+              col2.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                  if ui.small_button("🗑").on_hover_text("Delete vault").clicked() {
+                    if let Err(e) = fs::remove_file(&vault) {
+                      self.show_error(format!("Failed to delete vault: {}", e));
+                    } else
+                    {
+                      self.show_info(format!("Deleted vault '{}'", display_name));
+                      self.available_vaults = Self::load_available_vaults()
+                    }
+                  }
+                  
+                });
               });
             });
-          });
+          }
         }
-      }
-
-      ui.separator();
-
-      if ui.button("➕ Create New Vault").clicked() {
-        let vault_name = format!("vault_{}", chrono::Utc::now().timestamp());
-        let path = format!("vaults/{}.json", vault_name);
-        self.selected_vault = Some(path.clone());
-        self.state = AppState::Locked { is_new: true };
-      }
-
+        
+        ui.separator();
+        
+        if ui.button("➕ Create New Vault").clicked() {
+          let vault_name = format!("vault_{}", chrono::Utc::now().timestamp());
+          let path = format!("vaults/{}.json", vault_name);
+          self.selected_vault = Some(path.clone());
+          self.state = AppState::Locked { is_new: true };
+        }
+        
+      });
     });
   }
 
