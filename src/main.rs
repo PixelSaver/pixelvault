@@ -6,7 +6,6 @@ use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
 use chrono;
 use eframe::egui;
-use egui::{Align, Align2, InnerResponse, Layout, Ui};
 use egui_toast::{Toast, ToastKind, ToastOptions, ToastStyle, Toasts};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -158,7 +157,7 @@ impl PixelVaultApp {
     vaults
   }
 
-  fn fancy_frame(&self, ui: &egui::Ui) -> egui::Frame {
+  fn fancy_frame(ui: &egui::Ui) -> egui::Frame {
     egui::Frame::new()
       .inner_margin(12)
       .outer_margin(6)
@@ -175,7 +174,7 @@ impl PixelVaultApp {
       });
     });
     egui::CentralPanel::default().show(ctx, |ui| {
-      self.fancy_frame(ui).show(ui, |ui| {
+      PixelVaultApp::fancy_frame(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
 
         match &self.state {
@@ -285,7 +284,7 @@ impl PixelVaultApp {
       });
     });
     egui::CentralPanel::default().show(ctx, |ui| {
-      self.fancy_frame(ui).show(ui, |ui| {
+      PixelVaultApp::fancy_frame(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
 
         // Main interface
@@ -328,9 +327,11 @@ impl PixelVaultApp {
               .hint_text("Search services or usernames")
               .desired_width(ui.available_width()-30.0),
           );
-          if ui.small_button("X").clicked() {
+          let clear_response = ui.small_button("X");
+          if clear_response.clicked() {
             self.search_query.clear();
           }
+          clear_response.on_hover_text("Clear search query")
         });
 
         ui.separator();
@@ -379,7 +380,7 @@ impl PixelVaultApp {
   }
 
   fn show_password_entry(&mut self, ui: &mut egui::Ui, entry: &PasswordEntry, index: usize) {
-    self.fancy_frame(ui).show(ui, |ui| {
+    PixelVaultApp::fancy_frame(ui).show(ui, |ui| {
       ui.set_width(ui.available_width());
 
       // Delete confirmation
@@ -506,7 +507,7 @@ impl PixelVaultApp {
       });
     });
     egui::CentralPanel::default().show(ctx, |ui| {
-      self.fancy_frame(ui).show(ui, |ui| {
+      PixelVaultApp::fancy_frame(ui).show(ui, |ui| {
         ui.heading("Choose a Vault");
         ui.add_space(10.0);
 
