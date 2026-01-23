@@ -76,11 +76,61 @@ struct PixelVaultApp {
   // Display
   show_password_index: Option<usize>,
   decrypted_passwords: Vec<Option<String>>,
-  error_message: String,
+  // error_message: String,
+  /// Replaces error_message, to show notifications and errors
   toasts: Toasts,
 }
 
 impl PixelVaultApp {
+  /// Show error using toasts
+  fn show_error(&mut self, message: impl Into<String>) {
+    self.toasts.add(Toast {
+      style: ToastStyle::default(),
+      text: message.into().into(),
+      kind: ToastKind::Error,
+      options: ToastOptions::default()
+        .duration_in_seconds(5.0)
+        .show_progress(true)
+        .show_icon(true),
+    });
+  }
+  
+  fn show_success(&mut self, message: impl Into<String>) {
+    self.toasts.add(Toast {
+      style: ToastStyle::default(),
+      text: message.into().into(),
+      kind: ToastKind::Success,
+      options: ToastOptions::default()
+        .duration_in_seconds(2.5)
+        .show_progress(true)
+        .show_icon(true),
+    });
+  }
+  
+  fn show_warning(&mut self, message: impl Into<String>) {
+    self.toasts.add(Toast {
+      style: ToastStyle::default(),
+      text: message.into().into(),
+      kind: ToastKind::Warning,
+      options: ToastOptions::default()
+        .duration_in_seconds(3.5)
+        .show_progress(true)
+        .show_icon(true),
+    });
+  }
+  
+  fn show_info(&mut self, message: impl Into<String>) {
+    self.toasts.add(Toast {
+      style: ToastStyle::default(),
+      text: message.into().into(),
+      kind: ToastKind::Info,
+      options: ToastOptions::default()
+        .duration_in_seconds(2.0)
+        .show_progress(true)
+        .show_icon(true),
+    });
+  }
+  
   fn load_available_vaults() -> Vec<String> {
     let mut vaults = Vec::new();
 
@@ -116,6 +166,7 @@ impl PixelVaultApp {
             .trim_start_matches("vaults/")
             .trim_end_matches(".json");
           ui.label(format!("Vault: {}", display_name));
+          ui.add_space(10.0);
         }
 
         // Login screen
@@ -132,6 +183,7 @@ impl PixelVaultApp {
         let response = ui.add(
           egui::TextEdit::singleline(&mut self.master_password)
             .password(true)
+            .desired_width(ui.available_width())
             .hint_text("Master password"),
         );
 
@@ -144,17 +196,11 @@ impl PixelVaultApp {
           self.attempt_unlock();
         }
 
-        if !self.error_message.is_empty() {
-          ui.add_space(10.0);
-          ui.colored_label(egui::Color32::RED, &self.error_message);
-        }
-
         ui.add_space(10.0);
 
         if ui.button("Back to Vaults").clicked() {
           self.state = AppState::SelectVault;
           self.master_password.clear();
-          self.error_message.clear();
           self.vault = None;
           self.cipher_key = None;
         }
@@ -327,23 +373,27 @@ impl PixelVaultApp {
     self.fancy_frame(ui).show(ui, |ui| {
       ui.heading("Choose a Vault");
       ui.add_space(10.0);
-
-      for vault in self.available_vaults.clone() {
-        ui.columns(2, |columns| {
-          columns[0].horizontal(|ui| {
-            if ui.button(&vault).clicked() {
-              self.selected_vault = Some(vault.clone());
-              self.state = AppState::Locked { is_new: false };
-              self.load_vault_from_path(&vault).unwrap();
-            }
-          });
-          columns[1].horizontal(|ui| {
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-              if ui.button("Remove vault").clicked() {
-                if let Some(pos) =
-                self.available_vaults.iter().position(|x| *x == vault)
-                {
-                  self.available_vaults.swap_remove(pos);
+      
+      if self.available_vaults.is_empty() {
+        ui.label("No vaults found. Create one to get started!");
+        ui.add_space(10.0);
+      } else {
+        for vault in self.available_vaults.clone() {
+          let display_name = vault
+            .trim_start_matches("vaults/")
+            .trim_end_matches(".json");
+          
+          ui.columns_const(|[col1, col2]| {
+            col1.horizontal(|ui| {
+              if ui.button(display_name).clicked() {
+                match self.load_vault_from_path(&vault) {
+                  Ok(_) => {
+                    self.selected_vault = Some(vault.clone());
+                    self.state = AppState::Locked { is_new: false };
+                  }
+                  Err(e) => {
+                    self.show_error(format!("Failed to load vault: {}", e));
+                  }
                 }
               }
             });
@@ -362,7 +412,7 @@ impl PixelVaultApp {
               });
             });
           });
-        });
+        }
       }
 
       ui.separator();
@@ -374,10 +424,6 @@ impl PixelVaultApp {
         self.state = AppState::Locked { is_new: true };
       }
 
-      if !self.error_message.is_empty() {
-        ui.add_space(10.0);
-        ui.colored_label(egui::Color32::RED, &self.error_message);
-      }
     });
   }
 
@@ -427,36 +473,31 @@ impl PixelVaultApp {
 
   fn attempt_unlock(&mut self) {
     if self.master_password.is_empty() {
-      self.error_message = "Master password cannot be empty".to_string();
+      self.show_error("Master password cannot be empty!");
       return;
     }
     match self.state {
       AppState::Locked { is_new } => {
         if is_new {
           // Make a new vault
-          let path = self
-            .selected_vault
+          let path = self.selected_vault
             .clone()
             .unwrap_or_else(|| "vaults/new_vault.json".to_string());
           self.create_new_vault(&path);
           self.state = AppState::Unlocked;
-          self.error_message.clear();
+          self.show_success("Vault created successfully!");
         } else {
           if self.unlock() {
             self.state = AppState::Unlocked;
-            self.error_message.clear();
+            self.show_success("Vault unlocked!");
           } else {
-            self.error_message = "Incorrect master password".to_string();
+            self.show_error("Incorrect Master Password");
             self.master_password.clear();
           }
         }
       }
       _ => {}
     }
-    // let vault = self.vault.as_ref().unwrap();
-    // let key = self.derive_key(&self.master_password, &vault.salt);
-    // self.cipher_key = Some(key);
-    // self.state = AppState::Unlocked;
   }
 
   fn lock_vault(&mut self) {
@@ -469,7 +510,7 @@ impl PixelVaultApp {
     self.new_password.clear();
     self.vault = None;
     self.selected_vault = None;
-    self.error_message.clear();
+    self.show_info("Vault locked");
   }
 
   fn create_new_vault(&mut self, path: &str) {
@@ -547,6 +588,7 @@ impl PixelVaultApp {
 
   fn add_entry(&mut self) {
     if self.new_service.is_empty() {
+      self.show_error("Service name is required");
       return;
     }
 
@@ -571,7 +613,7 @@ impl PixelVaultApp {
         self.new_password.clear();
       }
       Err(e) => {
-        self.error_message = format!("Failed to encrypt: {}", e);
+        self.show_error(format!("Failed to encrypt: {}", e));
       }
     }
   }
@@ -579,8 +621,11 @@ impl PixelVaultApp {
   fn delete_entry(&mut self, index: usize) {
     if let Some(vault) = &mut self.vault {
       if index < vault.entries.len() {
+        let service = vault.entries[index].service.clone();
         vault.entries.remove(index);
         self.save_vault();
+        
+        self.show_info(format!("Deleted password for {}", service));
 
         // Delete password show if the entry is deleted
         if self.show_password_index == Some(index) {
