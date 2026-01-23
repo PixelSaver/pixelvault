@@ -157,6 +157,11 @@ impl PixelVaultApp {
   }
 
   fn show_locked(&mut self, ctx: &egui::Context) {
+    egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
+      ui.horizontal(|ui| {
+        ui.heading("🔒 PixelVault");
+      });
+    });
     egui::CentralPanel::default().show(ctx, |ui| {
       self.fancy_frame(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
@@ -385,14 +390,15 @@ impl PixelVaultApp {
     ui.add_space(5.0);
   }
   
-  
-  fn show_select_vault(&mut self, ui: &mut egui::Ui) {
-    self.fancy_frame(ui).show(ui, |ui| {
-      ui.heading("Choose a Vault");
-      ui.add_space(10.0);
-      
-      if self.available_vaults.is_empty() {
-        ui.label("No vaults found. Create one to get started!");
+  fn show_select_vault(&mut self, ctx: &egui::Context) {
+    egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
+      ui.horizontal(|ui| {
+        ui.heading("🔒 PixelVault");
+      });
+    });
+    egui::CentralPanel::default().show(ctx, |ui| {
+      self.fancy_frame(ui).show(ui, |ui| {
+        ui.heading("Choose a Vault");
         ui.add_space(10.0);
       } else {
         for vault in self.available_vaults.clone() {
@@ -686,9 +692,7 @@ impl eframe::App for PixelVaultApp {
     self.toasts.show(ctx);
     match &self.state {
       AppState::SelectVault => {
-        egui::CentralPanel::default().show(ctx, |ui| {
-          self.show_select_vault(ui);
-        });
+        self.show_select_vault(ctx);
       }
       AppState::Locked { .. } => {
         self.show_locked(ctx);
