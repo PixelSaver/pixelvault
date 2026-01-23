@@ -323,11 +323,14 @@ impl PixelVaultApp {
         // Service / Entry search query
         ui.horizontal(|ui| {
           ui.label("Search:");
-          ui.add(
+          let response =  ui.add(
             egui::TextEdit::singleline(&mut self.search_query)
               .hint_text("Search services or usernames")
-              .desired_width(ui.available_width()),
+              .desired_width(ui.available_width()-30.0),
           );
+          if ui.small_button("X").clicked() {
+            self.search_query.clear();
+          }
         });
 
         ui.separator();
