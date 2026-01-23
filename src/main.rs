@@ -347,6 +347,20 @@ impl PixelVaultApp {
                 }
               }
             });
+            col2.horizontal(|ui| {
+              ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                if ui.small_button("🗑").on_hover_text("Delete vault").clicked() {
+                  if let Err(e) = fs::remove_file(&vault) {
+                    self.show_error(format!("Failed to delete vault: {}", e));
+                  } else
+                  {
+                    self.show_info(format!("Deleted vault '{}'", display_name));
+                    self.available_vaults = Self::load_available_vaults()
+                  }
+                }
+                
+              });
+            });
           });
         });
       }
