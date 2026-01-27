@@ -141,49 +141,49 @@ impl PixelVaultApp {
       krypt::decrypt_password(&key, &entry.encrypted_password, &entry.nonce)
   }
   
-  pub fn attempt_create_vault(&mut self) {
+  pub fn attempt_create_vault(&mut self) -> Result<String, String> {
     if self.new_vault_name.trim().is_empty() {
-      self.show_error("Vault name cannot be empty");
-      return;
+      return Err("Vault name cannot be empty".into());
     } else if self.master_password.is_empty() {
-      self.show_error("Vault master password cannot be empty");
-      return;
+      return Err("Vault master password cannot be empty".into());
     } else if self.master_password != self.master_password_confirm {
-      self.show_error("Passwords do not match");
-      return;
+      return Err("Passwords do not match".into());
     }
-    // Maybe the code for the fallback will be useful someday?
-    let _fallback_vault_name = format!("vault_{}", chrono::Utc::now().timestamp());
-    let path = format!("vaults/{}.json", self.new_vault_name.trim());
+    // Fallback to empty if no new vault name (somehow ig)
+    let _fallback_vault_name = chrono::Utc::now().timestamp().to_string();
+    let path = format!("vaults/{}.json", 
+      if !self.new_vault_name.is_empty() {self.new_vault_name.trim()} 
+      else {&_fallback_vault_name}
+    );
     if self.get_available_vaults().contains(&path) {
-      self.show_error("Vault already exists");
-      return;
+      return Err("Vault already exists".into());
     }
     self.state = AppState::Unlocked;
     self.selected_vault = Some(path.clone());
-    self.create_new_vault(&path);
-    self.show_success("Vault created successfully!");
+    self.create_new_vault(&path)?;
+    Ok("Vault created successfully!".into())
   }
   
-  pub fn create_new_vault(&mut self, path: &str) {
+  pub fn create_new_vault(&mut self, path: &str) -> Result<(), String> {
     let salt = krypt::gen_salt();
-    let key = krypt::derive_key(&self.master_password, salt.as_str())
-      .expect("Failed to derive key");
+    let key = krypt::derive_key(&self.master_password, salt.as_str())?;
     self.vault = Some(PasswordVault {
       salt: salt.as_str().to_string(),
       entries: Vec::new(),
+      verify: chrono::Utc::now().timestamp().to_string()
     });
     self.cipher_key = Some(key);
     self.selected_vault = Some(path.to_string());
     
     // Make sure the directory exists
-    std::fs::create_dir_all("vaults").ok();
+    std::fs::create_dir_all("vaults").map_err(|e| e.to_string())?;
     
     // Save immediately
-    self.save_vault();
+    self.save_vault()?;
     
     // Refresh available vaults
     self.available_vaults = vault::list_vaults();
+    Ok(())
   }
   
   pub fn reload_available_vaults(&mut self) {
@@ -228,11 +228,11 @@ impl PixelVaultApp {
   
   /// Function to try to unlock the vault using self.master_password,
   /// returns false if fail and true if succeeded
-  pub fn unlock(&mut self) -> bool {
-    let path = match self.selected_vault.as_ref() {
-      Some(p) => p,
-      None => return false,
-    };
+  pub fn unlock(&mut self, path: &str) -> bool {
+    // let path = match self.selected_vault.as_ref() {
+    //   Some(p) => p,
+    //   None => return false,
+    // };
     let vault = match vault::load(&path) {
       Ok(v) => v,
       Err(_) => return false,
@@ -248,10 +248,9 @@ impl PixelVaultApp {
     true
   }
   
-  pub fn attempt_unlock(&mut self) {
+  pub fn attempt_unlock(&mut self) -> Result<String, String> {
     if self.master_password.is_empty() {
-      self.show_error("Master password cannot be empty!");
-      return;
+      return Err("Master password cannot be empty!".into());
     }
     match self.state {
       AppState::NewVault => {
@@ -260,21 +259,28 @@ impl PixelVaultApp {
             .selected_vault
             .clone()
             .unwrap_or_else(|| "vaults/new_vault.json".to_string());
-          self.create_new_vault(&path);
+          self.create_new_vault(&path)?;
           self.state = AppState::Unlocked;
-          self.show_success("Vault created successfully!");
+          return Ok("Vault created successfully!".into());
       },
       AppState::OldVault => {
-          if self.unlock() {
-            self.state = AppState::Unlocked;
-            self.show_success("Vault unlocked!");
-          } else {
-            self.show_error("Incorrect Master Password");
-            self.master_password.clear();
+        let path = match self.get_selected_vault().clone() {
+          Some(p) => p,
+          None => {
+            return Err("No vault selected!".into());
           }
+        };
+        if self.unlock(&path) {
+          self.state = AppState::Unlocked;
+          return Ok("Vault unlocked!".into());
+        } else {
+          self.master_password.clear();
+          return Err("Incorrect Master Password".into());
+        }
       },
       _ => {}
     }
+    Ok("".into())
   }
   
   pub fn add_entry(&mut self) {

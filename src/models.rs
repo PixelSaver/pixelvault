@@ -8,8 +8,7 @@ pub struct PasswordVault {
   pub salt: String,
   pub entries: Vec<PasswordEntry>,
   // Unencryption check for master password when entries is empty
-  // check: String,
-  // TODO
+  pub verify: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
