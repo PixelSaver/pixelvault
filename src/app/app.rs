@@ -199,7 +199,6 @@ impl PixelVaultApp {
       }
     }
     self.selected_vault = Some(path);
-    self.cipher_key = None;
     self.state = AppState::OldVault;
     
     Ok(())
@@ -236,15 +235,16 @@ impl PixelVaultApp {
     };
     let vault = match vault::load(&path) {
       Ok(v) => v,
-      Err(e) => return false,
+      Err(_) => return false,
     };
+    let salt = vault.salt.clone();
     self.vault = Some(vault);
     // let vault = self.vault.as_ref().unwrap();
     
-    // let key = match krypt::derive_key(&self.master_password, &vault.salt) {
-    //   Ok(k) => k,
-    //   Err(_) => return false,
-    // };    self.cipher_key = Some(key);
+    let key = match krypt::derive_key(&self.master_password, &salt) {
+      Ok(k) => k,
+      Err(_) => return false,
+    };    self.cipher_key = Some(key);
     true
   }
   
@@ -278,10 +278,6 @@ impl PixelVaultApp {
   }
   
   pub fn add_entry(&mut self) {
-    if self.new_service.is_empty() {
-      self.show_error("Service name is required");
-      return;
-    }
     let key: &[u8] = match self.cipher_key.as_deref() {
         Some(k) => k,
         None => {
@@ -297,6 +293,8 @@ impl PixelVaultApp {
           encrypted_password: encrypted,
           nonce,
         };
+        
+        self.vault.as_mut().unwrap().entries.push(entry);
 
         match self.save_vault() {
           Ok(_) => {},
