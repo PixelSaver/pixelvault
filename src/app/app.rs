@@ -6,7 +6,8 @@ use crate::{models::*, vault, krypt};
 pub enum AppState {
     #[default]
     SelectVault,
-    Locked { is_new: bool },
+    NewVault,
+    OldVault,
     Unlocked,
 }
 
@@ -199,9 +200,14 @@ impl PixelVaultApp {
     }
     self.selected_vault = Some(path);
     self.cipher_key = None;
-    self.state = AppState::Locked { is_new: false };
+    self.state = AppState::OldVault;
     
     Ok(())
+  }
+  
+  pub fn go_to_vault_creation(&mut self) {
+    self.cipher_key = None;
+    self.state = AppState::NewVault;
   }
   
   pub fn delete_vault(&mut self, path: &String) -> Result<(), String>{
@@ -242,8 +248,7 @@ impl PixelVaultApp {
       return;
     }
     match self.state {
-      AppState::Locked { is_new } => {
-        if is_new {
+      AppState::NewVault => {
           // Make a new vault
           let path = self
             .selected_vault
@@ -252,7 +257,8 @@ impl PixelVaultApp {
           self.create_new_vault(&path);
           self.state = AppState::Unlocked;
           self.show_success("Vault created successfully!");
-        } else {
+      },
+      AppState::OldVault => {
           if self.unlock() {
             self.state = AppState::Unlocked;
             self.show_success("Vault unlocked!");
@@ -260,8 +266,7 @@ impl PixelVaultApp {
             self.show_error("Incorrect Master Password");
             self.master_password.clear();
           }
-        }
-      }
+      },
       _ => {}
     }
   }
@@ -287,7 +292,12 @@ impl PixelVaultApp {
           nonce,
         };
 
-        self.save_vault();
+        match self.save_vault() {
+          Ok(_) => {},
+          Err(e) => {
+            self.show_error(format!("Failed to save vault: {}", e));
+          }
+        };
         
         self.decrypted_passwords.push(None);
 
@@ -330,9 +340,6 @@ impl PixelVaultApp {
   pub fn get_available_vaults(&self) -> Vec<String> {
     self.available_vaults.clone()
   }
-  pub fn set_available_vaults(&mut self, new_set: Vec<String>) {
-    self.available_vaults = new_set;
-  }
   
   pub fn get_selected_vault(&mut self) -> &Option<String> {
     &self.selected_vault
@@ -355,7 +362,8 @@ impl eframe::App for PixelVaultApp {
         self.toasts.show(ctx);
         match self.state {
             AppState::SelectVault => self.show_select_vault(ctx),
-            AppState::Locked { .. } => self.show_locked(ctx),
+            AppState::NewVault => self.show_new_vault(ctx),
+            AppState::OldVault => self.show_old_vault(ctx),
             AppState::Unlocked => self.show_unlocked(ctx),
         }
     }

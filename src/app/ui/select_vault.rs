@@ -60,9 +60,10 @@ impl PixelVaultApp {
         ui.separator();
 
         if ui.button("➕ Create New Vault").clicked() {
-          let vault_name = format!("vault_{}", chrono::Utc::now().timestamp());
-          let path = format!("vaults/{}.json", vault_name);
-          self.create_new_vault(&path);
+          // let vault_name = format!("vault_{}", chrono::Utc::now().timestamp());
+          // let path = format!("vaults/{}.json", vault_name);
+          // self.attempt_create_vault(&path);
+          self.go_to_vault_creation();
         }
       });
     });

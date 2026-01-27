@@ -46,3 +46,4 @@ pub fn decrypt_password(key: &[u8], encrypted: &[u8], nonce: &[u8]) -> Result<St
 pub fn gen_salt() -> String {
   SaltString::generate(&mut OsRng).to_string()
 }
+
