@@ -28,11 +28,29 @@ impl PixelVaultApp {
                   .hint_text("Master password"),
             );
             if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                self.attempt_unlock();
+              match self.attempt_unlock() {
+                Ok(m) => {
+                  if !m.is_empty() {
+                    self.show_success(m)
+                  }
+                },
+                Err(e) => {
+                  self.show_error(e);
+                }
+              };
             }
 
             if ui.button("Unlock").clicked() {
-                self.attempt_unlock();
+              match self.attempt_unlock() {
+                Ok(m) => {
+                  if !m.is_empty() {
+                    self.show_success(m)
+                  }
+                },
+                Err(e) => {
+                  self.show_error(e);
+                }
+              };
             }
 
             ui.add_space(10.0);

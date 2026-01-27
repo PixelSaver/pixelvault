@@ -141,13 +141,13 @@ impl PixelVaultApp {
       krypt::decrypt_password(&key, &entry.encrypted_password, &entry.nonce)
   }
   
-  pub fn attempt_create_vault(&mut self) -> Result<String, String> {
+  pub fn attempt_create_vault(&mut self) {
     if self.new_vault_name.trim().is_empty() {
-      return Err("Vault name cannot be empty".into());
+      self.show_error("Vault name cannot be empty");
     } else if self.master_password.is_empty() {
-      return Err("Vault master password cannot be empty".into());
+      self.show_error("Vault master password cannot be empty");
     } else if self.master_password != self.master_password_confirm {
-      return Err("Passwords do not match".into());
+      self.show_error("Passwords do not match");
     }
     // Fallback to empty if no new vault name (somehow ig)
     let _fallback_vault_name = chrono::Utc::now().timestamp().to_string();
@@ -156,21 +156,27 @@ impl PixelVaultApp {
       else {&_fallback_vault_name}
     );
     if self.get_available_vaults().contains(&path) {
-      return Err("Vault already exists".into());
+      self.show_error("Vault already exists");
     }
     self.state = AppState::Unlocked;
     self.selected_vault = Some(path.clone());
-    self.create_new_vault(&path)?;
-    Ok("Vault created successfully!".into())
+    match self.create_new_vault(&path).map_err(|e| e.to_string()) {
+      Err(e) => self.show_error(&e),
+      Ok(_) => self.show_success("Vault created successfully!")
+    };
   }
   
   pub fn create_new_vault(&mut self, path: &str) -> Result<(), String> {
     let salt = krypt::gen_salt();
     let key = krypt::derive_key(&self.master_password, salt.as_str())?;
+    let timestamp = chrono::Utc::now().timestamp().to_string();
+    let (encrypted_timestamp, nonce) = krypt::encrypt_password(&key, &timestamp)
+      .map_err(|e| e.to_string())?;
     self.vault = Some(PasswordVault {
       salt: salt.as_str().to_string(),
       entries: Vec::new(),
-      verify: chrono::Utc::now().timestamp().to_string()
+      verify: encrypted_timestamp,
+      verify_nonce: nonce,
     });
     self.cipher_key = Some(key);
     self.selected_vault = Some(path.to_string());
@@ -244,8 +250,12 @@ impl PixelVaultApp {
     let key = match krypt::derive_key(&self.master_password, &salt) {
       Ok(k) => k,
       Err(_) => return false,
-    };    self.cipher_key = Some(key);
-    true
+    };
+    self.cipher_key = Some(key.clone());
+    
+    let vault = self.vault.as_ref().unwrap();
+    
+    krypt::verify(&key, &vault.verify, &vault.verify_nonce)
   }
   
   pub fn attempt_unlock(&mut self) -> Result<String, String> {

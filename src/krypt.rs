@@ -19,6 +19,7 @@ pub fn derive_key(password: &str, salt: &str) -> Result<Vec<u8>, String> {
   // hash.hash.unwrap().as_bytes()[..32].to_vec()
 }
 
+// Returns (encrypted, nonce)
 pub fn encrypt_password(key: &[u8], password: &str) -> Result<(Vec<u8>, Vec<u8>), String> {
   let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| e.to_string())?;
 
@@ -45,5 +46,20 @@ pub fn decrypt_password(key: &[u8], encrypted: &[u8], nonce: &[u8]) -> Result<St
 
 pub fn gen_salt() -> String {
   SaltString::generate(&mut OsRng).to_string()
+}
+
+pub fn verify(key: &[u8], encrypted: &[u8], nonce: &[u8]) -> bool {
+    let cipher = match Aes256Gcm::new_from_slice(&key) {
+      Ok(c) => c,
+      Err(_) => return false,
+    };
+    let nonce = Nonce::from_slice(&nonce);
+    if cipher
+      .decrypt(nonce, encrypted.as_ref())
+      .is_err()
+    {
+      return false;
+    }
+    true
 }
 
