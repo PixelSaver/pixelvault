@@ -57,6 +57,7 @@ impl PixelVaultApp {
               .hint_text("Search services or usernames")
               .desired_width(ui.available_width()-30.0),
           );
+          response.on_hover_text("Try searching something!");
           let clear_response = ui.small_button("X");
           if clear_response.clicked() {
             self.search_query.clear();

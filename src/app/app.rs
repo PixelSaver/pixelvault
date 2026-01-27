@@ -17,7 +17,7 @@ pub struct PixelVaultApp {
   state: AppState,
   /// List of available vaults in filepaths
   available_vaults: Vec<String>,
-  /// Actual vault selected out of available
+  /// Actual vault selected out of available (filepath)
   selected_vault: Option<String>,
 
   /// Master password for the current vault
@@ -230,15 +230,21 @@ impl PixelVaultApp {
   /// Function to try to unlock the vault using self.master_password,
   /// returns false if fail and true if succeeded
   pub fn unlock(&mut self) -> bool {
-    let vault = match self.vault.as_ref() {
-      Some(v) => v,
+    let path = match self.selected_vault.as_ref() {
+      Some(p) => p,
       None => return false,
     };
+    let vault = match vault::load(&path) {
+      Ok(v) => v,
+      Err(e) => return false,
+    };
+    self.vault = Some(vault);
     // let vault = self.vault.as_ref().unwrap();
-    let key = match krypt::derive_key(&self.master_password, &vault.salt) {
-      Ok(k) => k,
-      Err(_) => return false,
-    };    self.cipher_key = Some(key);
+    
+    // let key = match krypt::derive_key(&self.master_password, &vault.salt) {
+    //   Ok(k) => k,
+    //   Err(_) => return false,
+    // };    self.cipher_key = Some(key);
     true
   }
   
