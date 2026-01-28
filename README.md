@@ -57,21 +57,42 @@ Not yet
 
 <!-- ROADMAP -->
 ## Roadmap
-- [ ] Add naming of vaults
 - [X] Add double checking of master password when making new vaults
-- [ ] Add custom vault directories
 - [X] Add existing vault to vault directory
 - [X] Add encrypting the entire vault
-- [ ] Add a password generator
 - [X] Add a password search
-  - [ ] Database instead of json
-- [ ] Add ability to edit passwords
+- [X] Add ability to edit passwords
+- [ ] Add a password generator
+- [ ] Password strength meter (warnings for weak and reused)
+- [ ] Duplicate Detection
+- [ ] Add naming of vaults
+- [ ] Security score for vault
+- [ ] URL for services
+- [ ] Favicon display next to service
+- [ ] Password History
+- [ ] Tags
+- [ ] Password expiry reminder
+- [ ] Vault Statistics
+  - [ ] Total entries
+  - [ ] Average password strength
+  - [ ] Password expiry
+  - [ ] Reused passwords
+  - [ ] Types of vault entries
+  - [ ] Size of vault
+- [ ] Custom fields like a PIN
 - [ ] Add different entry types other than passwords
   - [ ] Notes
   - [ ] Aliases
   - [ ] Identities
   - [ ] Cards
   - [ ] Custom items
+- [ ] Alert if found in pwned databases
+- [ ] Import
+- [ ] Store / Generate 2FA
+- [ ] Attachments
+- [ ] Database instead of json
+- [ ] Global autofill query
+- [ ] Add custom vault directories
 
 ### Notes
 Since this is running on a compute shader, it doesn't work on web. I'm pissed too, but maybe one day I'll turn it into a spatial shader or something.
