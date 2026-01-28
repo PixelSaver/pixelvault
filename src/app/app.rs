@@ -332,6 +332,7 @@ impl PixelVaultApp {
 
   pub fn back_to_vaults(&mut self) {
     self.state = AppState::SelectVault;
+    self.new_vault_name.clear();
     self.master_password.clear();
     self.master_password_confirm.clear();
     self.vault = None;
