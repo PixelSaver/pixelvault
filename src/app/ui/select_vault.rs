@@ -1,5 +1,5 @@
+use crate::app::PixelVaultApp;
 use eframe::egui;
-use crate::{app::PixelVaultApp};
 
 impl PixelVaultApp {
   pub fn show_select_vault(&mut self, ctx: &egui::Context) {
@@ -21,8 +21,9 @@ impl PixelVaultApp {
             let vault = vault_ref.clone();
             let display_name = vault
               .trim_start_matches("vaults\\")
+              .trim_start_matches("vaults/")
               .trim_end_matches(".json");
-            
+
             let mut select_clicked = false;
             let mut delete_clicked = false;
 
