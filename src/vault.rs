@@ -8,6 +8,8 @@
 use crate::models::EncryptedVault;
 use std::fs;
 
+const README: &str = include_str!("../README.md");
+
 pub fn load(path: &str) -> Result<EncryptedVault, String> {
   let data = fs::read_to_string(path).map_err(|e| e.to_string())?;
   let vault = serde_json::from_str(&data).map_err(|e| e.to_string())?;
@@ -34,4 +36,8 @@ pub fn list_vaults() -> Vec<String> {
 
 pub fn delete(path: &String) -> Result<(), String> {
   fs::remove_file(path).map_err(|e| e.to_string())
+}
+
+pub fn get_readme() -> String {
+  README.to_string()
 }

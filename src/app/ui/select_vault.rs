@@ -4,8 +4,19 @@ use eframe::egui;
 impl PixelVaultApp {
   pub fn show_select_vault(&mut self, ctx: &egui::Context) {
     egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
-      ui.horizontal(|ui| {
-        ui.heading("🔒 PixelVault");
+      ui.columns_const(|[col1, col2]| {
+        col1.horizontal(|ui| {
+          ui.heading("🔒 PixelVault");
+        });
+        col2.horizontal(|ui| {
+          ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+            ui.horizontal(|ui| {
+              if ui.button("Help").clicked() {
+                self.go_to_help();
+              };
+            });
+          });
+        });
       });
     });
     egui::CentralPanel::default().show(ctx, |ui| {

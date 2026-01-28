@@ -9,6 +9,7 @@ pub enum AppState {
   NewVault,
   OldVault,
   Unlocked,
+  Help,
 }
 
 #[derive(Default)]
@@ -47,8 +48,6 @@ pub struct PixelVaultApp {
 
   // Display
   pub(crate) show_password_index: Option<usize>,
-  decrypted_passwords: Vec<Option<String>>,
-  // error_message: String,
   /// Replaces error_message, to show notifications and errors
   toasts: Toasts,
 }
@@ -202,6 +201,10 @@ impl PixelVaultApp {
   pub fn go_to_vault_creation(&mut self) {
     self.state = AppState::NewVault;
   }
+  
+  pub fn go_to_help(&mut self) {
+    self.state = AppState::Help;
+  }
 
   pub fn delete_vault(&mut self, path: &String) -> Result<(), String> {
     vault::delete(path)
@@ -341,7 +344,13 @@ impl PixelVaultApp {
     self.master_password_confirm.clear();
     self.vault = None;
   }
+  
+  pub fn get_help_markdown() -> String {
+    vault::get_readme()
+  }
 }
+
+  
 
 impl eframe::App for PixelVaultApp {
   fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
@@ -351,6 +360,12 @@ impl eframe::App for PixelVaultApp {
       AppState::NewVault => self.show_new_vault(ctx),
       AppState::OldVault => self.show_old_vault(ctx),
       AppState::Unlocked => self.show_unlocked(ctx),
+      AppState::Help => self.show_help(ctx),
+      _ => {
+        self.lock_vault();
+        self.state = AppState::SelectVault;
+        self.show_select_vault(ctx);
+      }
     }
   }
 }
