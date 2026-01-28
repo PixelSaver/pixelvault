@@ -23,7 +23,7 @@ impl PixelVaultApp {
           self.attempt_create_vault();
         }
         // Grab focus on first enter
-        if self.new_vault_name.is_empty() {
+        if self.new_vault_name.is_empty() && !name_response.has_focus() {
           name_response.request_focus();
         }
 

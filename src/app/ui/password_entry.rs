@@ -3,6 +3,8 @@ use crate::app::PixelVaultApp;
 use crate::models::{PasswordEntry};
 
 impl PixelVaultApp {
+  /// UI for depicting one password entry. 
+  /// Allows for deletion, click to copy, showing/hiding passwords.
   pub fn show_password_entry(&mut self, ui: &mut egui::Ui, entry: &PasswordEntry, index: usize) {
     PixelVaultApp::fancy_frame(ui).show(ui, |ui| {
       ui.set_width(ui.available_width());

@@ -3,7 +3,7 @@ use crate::app::PixelVaultApp;
 use egui_commonmark::{CommonMarkViewer, CommonMarkCache};
 
 impl PixelVaultApp {
-  /// UI for opening a new vault
+  /// Help page by reading `README.md` and showing it
   pub fn show_help(&mut self, ctx: &egui::Context) {
     egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
       ui.horizontal(|ui| {

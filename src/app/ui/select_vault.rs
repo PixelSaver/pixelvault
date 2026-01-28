@@ -2,6 +2,7 @@ use crate::app::PixelVaultApp;
 use eframe::egui;
 
 impl PixelVaultApp {
+  /// UI depicting the menu screen to choose which vault to open
   pub fn show_select_vault(&mut self, ctx: &egui::Context) {
     egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
       ui.columns_const(|[col1, col2]| {

@@ -1,12 +1,37 @@
+//! The `krypt` module handles cryptography.
+//!
+//! Responsibilities:
+//! - Derive the key from the password and a random salt.
+//! - Decrypt / Encrypt the entire vault using AES-GCM.
+//! 
+//! # Security model
+//! - Master password is never stored (if lost, the vault is locked forever)
+//! - Encryption keys are derived from the master password using Argon2.
+//! - Vault data is encrypted as a single item.
+//! - Nonces are regenerated randomly each encryption
 use aes_gcm::{
-  Aes256Gcm, Nonce,
+  Aes256Gcm, 
   aead::{Aead, AeadCore, KeyInit, OsRng, rand_core::RngCore},
 };
 use argon2::Argon2;
 
 use crate::models::{EncryptedVault, PasswordVault};
-// Everything to do with cryptography
 
+/// Derives a 256-bit encryption key from a master password and a salt.
+/// 
+/// # Arguments 
+/// - `password`: The master password used for key derivation.
+/// - `salt`: A random salt used for key derivation.
+/// 
+/// # Returns
+/// A 32-bit key suitable for AES-256-GCM
+/// 
+/// # Errors
+/// Returns an error if key derivation fails.
+/// 
+/// # Security
+/// - Argon2id with default parameters.
+/// - Returned key must not be persisted.
 pub fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32], String> {
   let argon2 = Argon2::default();
   let mut key = [0u8; 32];
@@ -18,6 +43,16 @@ pub fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32], String> {
   Ok(key)
 }
 
+/// Encrypts plaintext vault using a master password.
+/// 
+/// Serializes the vault, derives a key, and encrypts the serialized data.
+/// 
+/// # Security
+/// - Encrypts data with AES-256-GCM.
+/// - Nonce is generated using OsRng each time.
+/// 
+/// # Errors 
+/// Returns an error if key derivation, encryption, or serialization fails.
 pub fn encrypt_vault(
   vault: &PasswordVault,
   master_password: &str,
@@ -44,6 +79,16 @@ pub fn encrypt_vault(
   })
 }
 
+/// Decrypts plaintext vault using a master password.
+/// 
+/// Serializes the vault, derives a key, and decrypts the serialized data.
+/// 
+/// # Security
+/// - Decrypts data with AES-256-GCM.
+/// - Nonce is generated using OsRng each time.
+/// 
+/// # Errors 
+/// Returns an error if key derivation, encryption, or serialization fails.
 pub fn decrypt_vault(
   encrypted: &EncryptedVault,
   master_password: &str,
@@ -62,31 +107,15 @@ pub fn decrypt_vault(
   Ok(vault)
 }
 
-pub fn decrypt_password(key: &[u8], encrypted: &[u8], nonce: &[u8]) -> Result<String, String> {
-  let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| e.to_string())?;
-  let nonce = Nonce::from_slice(nonce);
-
-  let plaintext = cipher
-    .decrypt(nonce, encrypted)
-    .map_err(|_| "Decryption failed")?;
-
-  String::from_utf8(plaintext).map_err(|e| e.to_string())
-}
-
+/// Generates a random salt for key derivation.
+/// 
+/// # Security
+/// - Uses OsRng for cryptographic randomness.
+/// 
+/// # Errors 
+/// Returns an error if OsRng fails to generate random bytes.
 pub fn gen_salt() -> [u8; 16] {
   let mut salt = [0u8; 16];
   OsRng.fill_bytes(&mut salt);
   salt
-}
-
-pub fn verify(key: &[u8], encrypted: &[u8], nonce: &[u8]) -> bool {
-  let cipher = match Aes256Gcm::new_from_slice(&key) {
-    Ok(c) => c,
-    Err(_) => return false,
-  };
-  let nonce = Nonce::from_slice(&nonce);
-  if cipher.decrypt(nonce, encrypted.as_ref()).is_err() {
-    return false;
-  }
-  true
 }

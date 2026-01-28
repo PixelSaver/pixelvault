@@ -2,6 +2,7 @@ use crate::{krypt, models::*, vault};
 use eframe::egui;
 use egui_toast::{Toast, ToastKind, ToastOptions, ToastStyle, Toasts};
 
+/// State of the application, from selection, opening vaults, to help screen
 #[derive(Default)]
 pub enum AppState {
   #[default]
@@ -12,9 +13,10 @@ pub enum AppState {
   Help,
 }
 
+/// App state variables
 #[derive(Default)]
 pub struct PixelVaultApp {
-  // UI state
+  /// UI state
   state: AppState,
   /// List of available vaults in filepaths
   available_vaults: Vec<String>,
@@ -26,7 +28,7 @@ pub struct PixelVaultApp {
   /// Confirmation compared to master_password during vault creation
   pub(crate) master_password_confirm: String,
 
-  // Vault creation
+  /// Vault name used when making a new vault
   pub(crate) new_vault_name: String,
 
   // Entry form fields
@@ -34,7 +36,7 @@ pub struct PixelVaultApp {
   pub(crate) new_username: String,
   pub(crate) new_password: String,
 
-  /// Search for services / usernames
+  /// Search query for services / usernames when `AppState::Unlocked`
   pub(crate) search_query: String,
 
   // Data
@@ -47,6 +49,7 @@ pub struct PixelVaultApp {
   pub(crate) delete_confirmation_index: Option<usize>,
 
   // Display
+  /// Index storing shown password index so only one is shown at a time
   pub(crate) show_password_index: Option<usize>,
   /// Replaces error_message, to show notifications and errors
   toasts: Toasts,
@@ -74,7 +77,8 @@ impl PixelVaultApp {
       ..Default::default()
     }
   }
-
+  
+  /// Uses `egui_toast` to show error notification
   pub fn show_error(&mut self, message: impl Into<String>) {
     self.toasts.add(Toast {
       style: ToastStyle::default(),
@@ -86,7 +90,8 @@ impl PixelVaultApp {
         .show_icon(true),
     });
   }
-
+  
+  /// Uses `egui_toast` to show success notification
   pub fn show_success(&mut self, message: impl Into<String>) {
     self.toasts.add(Toast {
       style: ToastStyle::default(),
@@ -99,6 +104,7 @@ impl PixelVaultApp {
     });
   }
 
+  /// Uses `egui_toast` to show warning notification
   pub fn show_warning(&mut self, message: impl Into<String>) {
     self.toasts.add(Toast {
       style: ToastStyle::default(),
@@ -111,6 +117,7 @@ impl PixelVaultApp {
     });
   }
 
+  /// Uses `egui_toast` to show info notification
   pub fn show_info(&mut self, message: impl Into<String>) {
     self.toasts.add(Toast {
       style: ToastStyle::default(),
@@ -123,6 +130,13 @@ impl PixelVaultApp {
     });
   }
 
+  /// Encrypts and saves current vault state.
+  /// 
+  /// # Errors
+  /// Returns an error if:
+  /// - Vault / vault path doesn't exist
+  /// - Encryption fails
+  /// - Filesystem save fails
   pub fn save_vault(&mut self) -> Result<(), String> {
     let plaintext = self.vault.as_ref().ok_or("Vault locked")?;
     let path = self.selected_vault.as_ref().ok_or("No vault path")?;
@@ -139,6 +153,14 @@ impl PixelVaultApp {
     self.vault.as_ref()
   }
 
+  /// Try to create a vault
+  /// 
+  /// # Errors
+  /// Shows user an error if
+  /// - Vault name / master password is empty
+  /// - Master password confirm is different
+  /// - A vault at the path already exists
+  /// - Initializing a vault fails
   pub fn attempt_create_vault(&mut self) {
     if self.new_vault_name.trim().is_empty() {
       self.show_error("Vault name cannot be empty");
@@ -171,7 +193,13 @@ impl PixelVaultApp {
       Ok(_) => self.show_success("Vault created successfully!"),
     };
   }
-
+  
+  /// Creating a new vault
+  /// 
+  /// # Errors
+  /// Shows user an error if
+  /// - Vault encryption fails
+  /// - Filesystem save fails
   pub fn create_new_vault(&mut self, path: &str) -> Result<(), String> {
     let plaintext = PasswordVault { entries: vec![] };
 
@@ -184,10 +212,16 @@ impl PixelVaultApp {
     Ok(())
   }
 
+  /// Reads filesystem available vaults
   pub fn reload_available_vaults(&mut self) {
     self.available_vaults = vault::list_vaults();
   }
 
+  /// Select an existing vault
+  /// 
+  /// # Errors
+  /// Returns an error if:
+  /// - Vault fails to load
   pub fn select_existing_vault(&mut self, path: String) -> Result<(), String> {
     // vault::load(&path)?; // Same thing as below
     let encrypted = vault::load(&path)?;
@@ -198,18 +232,25 @@ impl PixelVaultApp {
     Ok(())
   }
 
+  /// Change to `AppState::NewVault`
   pub fn go_to_vault_creation(&mut self) {
     self.state = AppState::NewVault;
   }
   
+  /// Change to `AppState::Help`
   pub fn go_to_help(&mut self) {
     self.state = AppState::Help;
   }
 
+  /// Delete a vault
+  /// 
+  /// # Errors
+  /// Returns an error if the filesystem delete fails
   pub fn delete_vault(&mut self, path: &String) -> Result<(), String> {
     vault::delete(path)
   }
 
+  /// Reset PixelVaultApp struct data and exits the vault.
   pub fn lock_vault(&mut self) {
     self.state = AppState::SelectVault;
     self.master_password.clear();
@@ -224,7 +265,9 @@ impl PixelVaultApp {
   }
 
   /// Function to try to unlock the vault using self.master_password,
-  /// returns false if fail and true if succeeded
+  /// 
+  /// # Returns
+  /// False and true based on success
   pub fn unlock(&mut self, path: &str) -> bool {
     let encrypted = match vault::load(&path) {
       Ok(v) => v,
@@ -241,6 +284,16 @@ impl PixelVaultApp {
     true
   }
 
+  /// Attempt to unlock the vault stored in the PixelVaultApp state data
+  /// 
+  /// # Returns
+  /// Success string
+  /// 
+  /// # Errors
+  /// Returns an error if:
+  /// - Master password is empty
+  /// - `self.create_new_vault()` fails
+  /// - Master password is incorrect
   pub fn attempt_unlock(&mut self) -> Result<String, String> {
     if self.master_password.is_empty() {
       return Err("Master password cannot be empty!".into());
@@ -276,6 +329,10 @@ impl PixelVaultApp {
     Ok("".into())
   }
 
+  /// Add a `PasswordEntry` to the vault entries based on PixelVaultApp state data
+  /// 
+  /// # Errors
+  /// Shows the user an error if the vault is still locked or saving fails
   pub fn add_entry(&mut self) {
     let vault = match self.vault.as_mut() {
       Some(v) => v,
@@ -300,6 +357,10 @@ impl PixelVaultApp {
     })
   }
 
+  /// Delete an entry at a given index. Decrements show_password_index for bounds safety
+  /// 
+  /// # Returns
+  /// Shows user an info popup if password is removed
   pub fn delete_entry(&mut self, index: usize) {
     if let Some(vault) = &mut self.vault {
       if index < vault.entries.len() {
@@ -321,14 +382,17 @@ impl PixelVaultApp {
     }
   }
 
+  /// Returns number of password entries in the current vault.
   pub fn num_entries(&self) -> Option<usize> {
     self.vault.as_ref().map(|v| v.entries.len())
   }
 
+  /// Returns a copy of the available vaults
   pub fn get_available_vaults(&self) -> Vec<String> {
     self.available_vaults.clone()
   }
 
+  /// Return a reference to a selected vault
   pub fn get_selected_vault(&mut self) -> &Option<String> {
     &self.selected_vault
   }
@@ -337,6 +401,8 @@ impl PixelVaultApp {
     &self.state
   }
 
+  /// From `AppState::NewVault` or `AppState::OldVault` to `AppState::SelectVault`
+  /// Clears the input boxes
   pub fn back_to_vaults(&mut self) {
     self.state = AppState::SelectVault;
     self.new_vault_name.clear();
@@ -345,6 +411,7 @@ impl PixelVaultApp {
     self.vault = None;
   }
   
+  /// Return the readme as a string
   pub fn get_help_markdown() -> String {
     vault::get_readme()
   }
@@ -361,11 +428,11 @@ impl eframe::App for PixelVaultApp {
       AppState::OldVault => self.show_old_vault(ctx),
       AppState::Unlocked => self.show_unlocked(ctx),
       AppState::Help => self.show_help(ctx),
-      _ => {
-        self.lock_vault();
-        self.state = AppState::SelectVault;
-        self.show_select_vault(ctx);
-      }
+      // _ => {
+      //   self.lock_vault();
+      //   self.state = AppState::SelectVault;
+      //   self.show_select_vault(ctx);
+      // }
     }
   }
 }

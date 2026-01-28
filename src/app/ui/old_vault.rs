@@ -2,7 +2,7 @@ use crate::app::PixelVaultApp;
 use eframe::egui;
 
 impl PixelVaultApp {
-  /// UI for opening a new vault
+  /// UI for opening an already existing vault
   pub fn show_old_vault(&mut self, ctx: &egui::Context) {
     egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
       ui.horizontal(|ui| {

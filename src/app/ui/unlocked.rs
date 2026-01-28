@@ -2,6 +2,7 @@ use eframe::egui;
 use crate::app::PixelVaultApp;
 
 impl PixelVaultApp {  
+  /// UI depicting an unlocked vault.
   pub fn show_unlocked(&mut self, ctx: &egui::Context) {
     egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
       ui.horizontal(|ui| {
