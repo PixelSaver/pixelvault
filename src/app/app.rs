@@ -143,10 +143,13 @@ impl PixelVaultApp {
   pub fn attempt_create_vault(&mut self) {
     if self.new_vault_name.trim().is_empty() {
       self.show_error("Vault name cannot be empty");
+      return;
     } else if self.master_password.is_empty() {
       self.show_error("Vault master password cannot be empty");
+      return;
     } else if self.master_password != self.master_password_confirm {
       self.show_error("Passwords do not match");
+      return;
     }
     // Fallback to empty if no new vault name (somehow ig)
     let _fallback_vault_name = chrono::Utc::now().timestamp().to_string();
@@ -160,6 +163,7 @@ impl PixelVaultApp {
     );
     if self.get_available_vaults().contains(&path) {
       self.show_error("Vault already exists");
+      return;
     }
     self.state = AppState::Unlocked;
     self.selected_vault = Some(path.clone());
