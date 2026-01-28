@@ -27,7 +27,8 @@ impl PixelVaultApp {
         ui.add_space(5.0);
         return;
       }
-
+      
+      // Header row
       ui.columns_const(|[col1, col2]| {
         col1.horizontal(|ui| {
           ui.label(format!("🌐 {}", entry.service));
@@ -50,29 +51,27 @@ impl PixelVaultApp {
 
       response.on_hover_text("Click to copy username");
 
+      // Password row
       ui.columns_const(|[col1, col2]| {
         col1.horizontal(|ui| {
+          let password = {
+            let vault = match self.vault.as_ref() {
+              Some(v) => v,
+              None => return,
+            };
+            &vault.entries[index].password
+          };
+          
           if Some(index) == self.show_password_index {
-            match self.decrypted_password_for(index) {
-              Ok(password) => {
-                let response =
-                  ui.add(egui::Label::new(format!("🔑 {}", password)).sense(egui::Sense::click()));
-                if response.clicked() {
-                  ui.ctx().copy_text(password.clone());
-                  self.show_info("Password copied!")
-                }
-                response.on_hover_text("Click to copy");
-              }
-              Err(e) => {
-                ui.colored_label(egui::Color32::RED, format!("Error: {}", e));
-              }
+            let response =
+              ui.add(egui::Label::new(format!("🔑 {}", password)).sense(egui::Sense::click()));
+            if response.clicked() {
+              ui.ctx().copy_text(password.clone());
+              self.show_info("Password copied!")
             }
+            response.on_hover_text("Click to copy");
           } else {
             // Password hidden, show dots and still do click to copy
-            let password = self
-                .decrypted_password_for(index)
-              .unwrap_or_default();
-
             let response =
               ui.add(egui::Label::new("🔑 ••••••••••••••").sense(egui::Sense::click()));
 

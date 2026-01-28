@@ -5,17 +5,16 @@
 //! - Save a vault to a file.
 //! - Delete a vault.
 //! - List all available vaults
-use std::{fs};
-use crate::models::PasswordVault;
+use crate::models::EncryptedVault;
+use std::fs;
 
-
-pub fn load(path: &str) -> Result<PasswordVault, String> {
+pub fn load(path: &str) -> Result<EncryptedVault, String> {
   let data = fs::read_to_string(path).map_err(|e| e.to_string())?;
   let vault = serde_json::from_str(&data).map_err(|e| e.to_string())?;
   Ok(vault)
 }
 
-pub fn save(path: &str, vault: &PasswordVault) -> Result<(), String> {
+pub fn save(path: &str, vault: &EncryptedVault) -> Result<(), String> {
   let json = serde_json::to_string_pretty(vault).map_err(|e| e.to_string())?;
   fs::write(path, json).map_err(|e| e.to_string())
 }
@@ -33,6 +32,6 @@ pub fn list_vaults() -> Vec<String> {
     .unwrap_or_default()
 }
 
-pub fn delete(path: &String) -> Result<(), String>{
+pub fn delete(path: &String) -> Result<(), String> {
   fs::remove_file(path).map_err(|e| e.to_string())
 }
