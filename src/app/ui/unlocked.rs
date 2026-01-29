@@ -1,9 +1,9 @@
 use eframe::egui;
-use crate::app::PixelVaultApp;
+use crate::app::{PixelVaultApp, app::FeatureState};
 
 impl PixelVaultApp {  
   /// UI depicting an unlocked vault.
-  pub fn show_unlocked(&mut self, ctx: &egui::Context) {
+  pub fn show_unlocked(&mut self, ctx: &egui::Context, feature_state: &FeatureState) {
     egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
       ui.horizontal(|ui| {
         ui.heading("🔓 PixelVault");
@@ -18,29 +18,8 @@ impl PixelVaultApp {
       PixelVaultApp::fancy_frame(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
 
-        // Main interface
-        ui.horizontal(|ui| {
-          ui.heading("Add New Password");
-        });
-
-        ui.horizontal(|ui| {
-          ui.label("Service:");
-          ui.text_edit_singleline(&mut self.new_service);
-        });
-
-        ui.horizontal(|ui| {
-          ui.label("Username:");
-          ui.text_edit_singleline(&mut self.new_username);
-        });
-
-        ui.horizontal(|ui| {
-          ui.label("Password:");
-          ui.add(egui::TextEdit::singleline(&mut self.new_password).password(true));
-        });
-
-        if ui.button("Add Entry").clicked() && !self.new_service.is_empty() {
-          // Add entry here
-          self.add_entry();
+        match feature_state {
+        FeatureState::EditEntry { show_pw_gen }
         }
 
         ui.separator();
