@@ -15,6 +15,7 @@ mod krypt;
 mod models;
 mod vault;
 mod search;
+mod pw_gen;
 
 use eframe::egui;
 use app::PixelVaultApp;

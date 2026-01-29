@@ -5,3 +5,4 @@ pub mod password_entry;
 pub mod select_vault;
 pub mod unlocked;
 pub mod help;
+pub mod features;

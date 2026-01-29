@@ -1,4 +1,4 @@
-use crate::{krypt, models::*, vault};
+use crate::{krypt, models::*, pw_gen::*, vault};
 use eframe::egui;
 use egui_toast::{Toast, ToastKind, ToastOptions, ToastStyle, Toasts};
 
@@ -9,8 +9,22 @@ pub enum AppState {
   SelectVault,
   NewVault,
   OldVault,
-  Unlocked,
+  Unlocked {
+    feature_state: FeatureState,
+  },
   Help,
+}
+
+/// Enum depicting which feature to be used at the top of the password manager.
+#[derive(Default)]
+pub enum FeatureState {
+  /// Add a new entry (service, username, password) to the entries
+  #[default]
+  NewEntry,
+  /// Edit an existing entry
+  EditEntry { 
+    show_pw_gen: bool,
+  },
 }
 
 /// App state variables
@@ -18,6 +32,8 @@ pub enum AppState {
 pub struct PixelVaultApp {
   /// UI state
   state: AppState,
+  /// Which type of entry is being done
+  feature_state: FeatureState,
   /// List of available vaults in filepaths
   available_vaults: Vec<String>,
   /// Actual vault selected out of available (filepath)
@@ -38,6 +54,8 @@ pub struct PixelVaultApp {
 
   /// Search query for services / usernames when `AppState::Unlocked`
   pub(crate) search_query: String,
+  
+  gen_config: PasswordGeneratorConfig,
 
   // Data
   /// Plaintext vault stored only in local memory
@@ -47,6 +65,8 @@ pub struct PixelVaultApp {
 
   /// Index containing the password position to delete
   pub(crate) delete_confirmation_index: Option<usize>,
+  /// Index for which password to edit
+  pub(crate) edit_index: Option<usize>,
 
   // Display
   /// Index storing shown password index so only one is shown at a time
@@ -186,7 +206,9 @@ impl PixelVaultApp {
       self.show_error("Vault already exists");
       return;
     }
-    self.state = AppState::Unlocked;
+    self.state = AppState::Unlocked {
+      feature_state: FeatureState::default()
+    };
     self.selected_vault = Some(path.clone());
     match self.create_new_vault(&path).map_err(|e| e.to_string()) {
       Err(e) => self.show_error(&e),
@@ -306,7 +328,9 @@ impl PixelVaultApp {
           .clone()
           .unwrap_or_else(|| "vaults/new_vault.json".to_string());
         self.create_new_vault(&path)?;
-        self.state = AppState::Unlocked;
+        self.state = AppState::Unlocked {
+          feature_state: FeatureState::default()
+        };
         return Ok("Vault created successfully!".into());
       }
       AppState::OldVault => {
@@ -317,7 +341,9 @@ impl PixelVaultApp {
           }
         };
         if self.unlock(&path) {
-          self.state = AppState::Unlocked;
+          self.state = AppState::Unlocked {
+            feature_state: FeatureState::default()
+          };
           return Ok("Vault unlocked!".into());
         } else {
           self.master_password.clear();
@@ -422,11 +448,15 @@ impl PixelVaultApp {
 impl eframe::App for PixelVaultApp {
   fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
     self.toasts.show(ctx);
-    match self.state {
+    
+    // Take ownership temporarily, then restore
+    let state = std::mem::replace(&mut self.state, AppState::SelectVault);
+    
+    match state {
       AppState::SelectVault => self.show_select_vault(ctx),
       AppState::NewVault => self.show_new_vault(ctx),
       AppState::OldVault => self.show_old_vault(ctx),
-      AppState::Unlocked => self.show_unlocked(ctx),
+      AppState::Unlocked { feature_state } => self.show_unlocked(ctx, &feature_state),
       AppState::Help => self.show_help(ctx),
       // _ => {
       //   self.lock_vault();
