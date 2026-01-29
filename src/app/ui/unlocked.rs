@@ -1,9 +1,10 @@
 use eframe::egui;
-use crate::app::{PixelVaultApp, app::FeatureState};
+use crate::app::{PixelVaultApp, app::FeatureState, app::AppState};
 
 impl PixelVaultApp {  
   /// UI depicting an unlocked vault.
-  pub fn show_unlocked(&mut self, ctx: &egui::Context, feature_state: &FeatureState) {
+  pub fn show_unlocked(&mut self, ctx: &egui::Context) {
+    
     egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
       ui.horizontal(|ui| {
         ui.heading("🔓 PixelVault");
@@ -17,16 +18,27 @@ impl PixelVaultApp {
     egui::CentralPanel::default().show(ctx, |ui| {
       PixelVaultApp::fancy_frame(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
-
-        match feature_state {
-          FeatureState::NewEntry => {
-            self.show_new_entry(ctx);
-          }
-          FeatureState::EditEntry { .. } => {
-            self.show_edit_entry(ctx);
-          },
-          _ => {}
+        
+        // First, determine which state we're in
+        let is_new_entry = matches!(&self.state(), AppState::Unlocked { feature_state } if matches!(feature_state, FeatureState::NewEntry));
+        let is_edit_entry = matches!(&self.state(), AppState::Unlocked { feature_state } if matches!(feature_state, FeatureState::EditEntry { .. }));
+        
+        if is_new_entry {
+            self.show_new_entry(ui);
+        } else if is_edit_entry {
+            self.show_edit_entry(ui);
         }
+        // if let AppState::Unlocked { feature_state } = &mut self.state_mut() {
+        //   match feature_state {
+        //     FeatureState::NewEntry => {
+        //       self.show_new_entry(ui);
+        //     }
+        //     FeatureState::EditEntry { .. } => {
+        //       self.show_edit_entry(ui);
+        //     },
+        //     _ => {}
+        //   }
+        // }
 
         ui.separator();
         ui.horizontal(|ui| {

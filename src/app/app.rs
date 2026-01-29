@@ -426,6 +426,9 @@ impl PixelVaultApp {
   pub fn state(&self) -> &AppState {
     &self.state
   }
+  pub fn state_mut(&mut self) -> &mut AppState {
+    &mut self.state
+  }
 
   /// From `AppState::NewVault` or `AppState::OldVault` to `AppState::SelectVault`
   /// Clears the input boxes
@@ -450,13 +453,13 @@ impl eframe::App for PixelVaultApp {
     self.toasts.show(ctx);
     
     // Take ownership temporarily, then restore
-    let state = std::mem::replace(&mut self.state, AppState::SelectVault);
+    let state = &mut self.state;
     
     match state {
       AppState::SelectVault => self.show_select_vault(ctx),
       AppState::NewVault => self.show_new_vault(ctx),
       AppState::OldVault => self.show_old_vault(ctx),
-      AppState::Unlocked { feature_state } => self.show_unlocked(ctx, &feature_state),
+      AppState::Unlocked { .. } => self.show_unlocked(ctx),
       AppState::Help => self.show_help(ctx),
       // _ => {
       //   self.lock_vault();
