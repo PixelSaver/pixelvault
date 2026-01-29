@@ -3,16 +3,22 @@ use crate::{app::PixelVaultApp};
 
 impl PixelVaultApp{
   pub fn show_edit_entry(&mut self, ui: &mut egui::Ui) {
+    ui.columns_const(|[col1, col2]| {
+      col1.horizontal(|ui| {
+        ui.heading("Edit Entry");
+      });
+      col2.horizontal(|ui| {
+        self.change_feature_widget(ui);
+      });
+    });
+    
     if self.vault.is_none() {
       ui.colored_label(egui::Color32::RED, "Vault doesn't exist!");
       return;
     }
     let edit_index = match self.edit_index {
       Some(i) => i,
-      None => {
-        ui.colored_label(egui::Color32::RED, "Entry doesn't exist!");
-        return;
-      }
+      None => 0,
     };
     
     let vault = self.vault.as_mut().unwrap();
@@ -24,9 +30,6 @@ impl PixelVaultApp{
     
     let entry = &mut vault.entries[edit_index];
     
-    ui.horizontal(|ui| {
-      ui.heading("Edit Entry");
-    });
 
     ui.horizontal(|ui| {
       ui.label("Service:");

@@ -20,8 +20,8 @@ impl PixelVaultApp {
         ui.set_width(ui.available_width());
         
         // First, determine which state we're in
-        let is_new_entry = matches!(&self.state(), AppState::Unlocked { feature_state } if matches!(feature_state, FeatureState::NewEntry));
-        let is_edit_entry = matches!(&self.state(), AppState::Unlocked { feature_state } if matches!(feature_state, FeatureState::EditEntry { .. }));
+        let is_new_entry = matches!(&self.state(), AppState::Unlocked { feature_state } if matches!(feature_state, FeatureState::NewEntry{ .. }));
+        let is_edit_entry = matches!(&self.state(), AppState::Unlocked { feature_state } if matches!(feature_state, FeatureState::EditEntry));
         
         if is_new_entry {
             self.show_new_entry(ui);

@@ -16,15 +16,20 @@ pub enum AppState {
 }
 
 /// Enum depicting which feature to be used at the top of the password manager.
-#[derive(Default)]
 pub enum FeatureState {
   /// Add a new entry (service, username, password) to the entries
-  #[default]
-  NewEntry,
-  /// Edit an existing entry
-  EditEntry { 
+  NewEntry {
     show_pw_gen: bool,
   },
+  /// Edit an existing entry
+  EditEntry,
+}
+impl Default for FeatureState {
+  fn default() -> Self {
+    FeatureState::NewEntry {
+      show_pw_gen: true,
+    }
+  }
 }
 
 /// App state variables
