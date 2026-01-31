@@ -28,10 +28,22 @@ impl Default for PasswordGeneratorConfig {
   }
 }
 
-pub struct PasswordGenerator;
+pub struct PasswordGenerator {
+  pub(super) generated_password: String,
+  pub(super) config: PasswordGeneratorConfig,
+}
+impl Default for PasswordGenerator {
+  fn default() -> Self {
+    Self {
+      generated_password: String::new(),
+      config: PasswordGeneratorConfig::default(),
+    }
+  }
+}
 
 impl PasswordGenerator {
-  pub fn generate(config: &PasswordGeneratorConfig) -> Option<String> {
+  pub fn generate(&mut self) -> Option<String> {
+    let config = &self.config;
     let mut char_set = String::new();
     
     if config.include_uppercase {
