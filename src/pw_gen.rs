@@ -28,11 +28,10 @@ impl Default for PasswordGeneratorConfig {
   }
 }
 
-pub struct PasswordGenerator{
-  pub(crate) generated_password: String,
-  pub(crate) config: PasswordGeneratorConfig,
+pub struct PasswordGenerator {
+  pub(super) generated_password: String,
+  pub(super) config: PasswordGeneratorConfig,
 }
-
 impl Default for PasswordGenerator {
   fn default() -> Self {
     Self {
