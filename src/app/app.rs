@@ -60,7 +60,7 @@ pub struct PixelVaultApp {
   /// Search query for services / usernames when `AppState::Unlocked`
   pub(crate) search_query: String,
   
-  gen_config: PasswordGeneratorConfig,
+  pub(crate) pw_gen: PasswordGenerator,
 
   // Data
   /// Plaintext vault stored only in local memory
