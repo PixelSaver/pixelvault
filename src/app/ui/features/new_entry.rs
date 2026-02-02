@@ -1,5 +1,7 @@
+use std::ops::Div;
+
 use eframe::egui;
-use crate::app::{PixelVaultApp, app::FeatureState, app::AppState};
+use crate::{app::{PixelVaultApp, app::{AppState, FeatureState}}, pw_gen::{self, PasswordGenerator}};
 
 impl PixelVaultApp{
   /// UI depicting a form to add a new entry (username, service, password)
@@ -28,7 +30,14 @@ impl PixelVaultApp{
       ui.label("Password:");
       ui.add(egui::TextEdit::singleline(&mut self.new_password));
     });
-    
+    let pass_str: f32= PasswordGenerator::calc_strength(&self.new_password).into();
+    ui.horizontal(|ui| {
+      ui.label("Password Strength:");
+      ui.add(
+        egui::ProgressBar::new(pass_str/100.).corner_radius(1.)
+      );
+    });
+    // :)
     if let AppState::Unlocked { feature_state } = &mut self.state_mut() {
       let show_pw_gen = match feature_state {
         FeatureState::NewEntry { show_pw_gen } => show_pw_gen,

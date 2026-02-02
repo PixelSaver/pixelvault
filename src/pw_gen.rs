@@ -72,6 +72,7 @@ impl PasswordGenerator {
     Some(password)
   }
   
+  /// From 0 to 100 score of how strong a password is
   pub fn calc_strength(password: &str) -> u8 {
     if password.is_empty() {
       return 0;
