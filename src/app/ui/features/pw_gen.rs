@@ -12,13 +12,17 @@ impl PixelVaultApp {
         .corner_radius(0.0)
         .fill(ui.visuals().text_edit_bg_color.unwrap_or(Color32::from_gray(1)))
         .show(ui, |ui| {
-          ui.add(
+          let gen_pass_response = ui.add(
             egui::Label::new(RichText::new(&self.pw_gen.generated_password)
               .color(
                 ui.visuals().widgets.open.fg_stroke.color
               )
             )
           );
+          if gen_pass_response.clicked() {
+              ui.ctx().copy_text(self.pw_gen.generated_password.clone());
+              self.show_info("Generated Password copied!");
+          }
         });
           
       if ui.button("Generate Password").clicked() {

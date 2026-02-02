@@ -37,8 +37,6 @@ impl Default for FeatureState {
 pub struct PixelVaultApp {
   /// UI state
   state: AppState,
-  /// Which type of entry is being done
-  feature_state: FeatureState,
   /// List of available vaults in filepaths
   available_vaults: Vec<String>,
   /// Actual vault selected out of available (filepath)
