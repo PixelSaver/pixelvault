@@ -30,12 +30,11 @@ impl PixelVaultApp{
       ui.label("Password:");
       ui.add(egui::TextEdit::singleline(&mut self.new_password));
     });
-    let pass_str: f32= PasswordGenerator::calc_strength(&self.new_password).into();
+    let pass_str = PasswordGenerator::calc_strength(&self.new_password);
+    // let pass_score = PasswordGenerator::get_password_score(&self.new_password);
     ui.horizontal(|ui| {
       ui.label("Password Strength:");
-      ui.add(
-        egui::ProgressBar::new(pass_str/100.).corner_radius(1.)
-      );
+      ui.label(pass_str);
     });
     // :)
     if let AppState::Unlocked { feature_state } = &mut self.state_mut() {
